@@ -6,5 +6,6 @@ class Config:
     SQLALCHEMY_BINDS = {
         'salesorder': 'mssql+pymssql://sa:gladis0083@192.168.0.97/salesorder',
         'BI_DM': 'mssql+pymssql://sa:gladis0083@192.168.0.83/BI_DM',
-        'sfeed': 'mssql+pymssql://sa:gladis0083@192.168.0.80/sfeed'
+        'sfeed': 'mssql+pymssql://sa:gladis0083@192.168.0.80/sfeed',
+        'exact': 'mssql+pymssql://sa:gladis0083@192.168.0.98/120',
     }

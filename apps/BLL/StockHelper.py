@@ -2,10 +2,13 @@
 
 import importlib
 
+from sqlalchemy import func
+
+from ..entity.EXACT.gbkmut import gbkmut
 from ..entity.erp.common.Apps import Apps
 from ..utils.functions import Error
 
-from ..entity.erp.Stock.DailyConsumption import DailyConsumption
+
 
 class StockHelper:
 
@@ -26,3 +29,11 @@ class StockHelper:
         except Exception as e:
             raise e
 
+    @staticmethod
+    def UpdateOpenningStock(data):
+        try:
+            costCenterCode = data.get('costCenterCode')
+            gbkmut.ClosingStock(costCenterCode)
+            x = 1
+        except Exception as e:
+            raise e

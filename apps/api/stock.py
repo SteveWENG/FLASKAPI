@@ -10,3 +10,7 @@ bp = Blueprint('stock', __name__, url_prefix='/stock')
 @bp.route('/save', methods=['POST'])
 def save():
     return webapi(lambda dic: StockHelper.save(dic))
+
+@bp.route('/UpdateOpenningStock', methods=['POST'])
+def UpateOpenningStock():
+    return webapi(lambda dic: StockHelper.UpdateOpenningStock(dic))
