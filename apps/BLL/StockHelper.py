@@ -4,6 +4,7 @@ import importlib
 from ..entity.EXACT.gbkmut import gbkmut
 from ..entity.erp.Stock import TransData
 from ..entity.erp.common.Apps import Apps
+from ..entity.erp.common.CCMast import CCMast
 from ..utils.functions import Error
 
 
@@ -31,7 +32,13 @@ class StockHelper:
     def UpdateOpenningStock(data):
         try:
             costCenterCode = data.get('costCenterCode')
-            tmpList = gbkmut.ClosingStock(data.get('dbName'),costCenterCode)
+            if TransData.query.filter(TransData.CostCenterCode == costCenterCode).first() != None:
+                return 'Already updated the openning stock of ' + costCenterCode
+
+            dbName = CCMast.query.filter(CCMast.CostCenterCode == costCenterCode)\
+                .with_entities(CCMast.DBName).scalar()
+
+            tmpList = gbkmut.ClosingStock(dbName,costCenterCode)
 
             return TransData.UpdateOpenningStock(costCenterCode,data.get('creater',''),tmpList)
         except Exception as e:

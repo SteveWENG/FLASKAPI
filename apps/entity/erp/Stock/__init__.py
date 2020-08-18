@@ -116,6 +116,6 @@ class TransData(erp):
                 pass
             # li.to_sql('TransData', db.get_engine(db.get_app(),cls.__bind_key__), if_exists='replace')
 
-            return 'Sucessfull update openning stock of ' + costCenterCode
+            return 'Sucessfully update openning stock of ' + costCenterCode
         except Exception as e:
             raise e

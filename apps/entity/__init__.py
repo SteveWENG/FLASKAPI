@@ -38,6 +38,10 @@ class BaseModel(db.Model):
         return f"<User {attrs}>"
 
     @classmethod
+    def getBind(cls):
+        return db.get_engine(db.get_app(), cls.__bind_key__)
+
+    @classmethod
     @contextmanager
     def adds(cls, lines):
         try:

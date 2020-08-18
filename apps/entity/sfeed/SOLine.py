@@ -7,4 +7,4 @@ class SOLine(sfeed):
     ItemGUID = db.Column(db.String)
     Qty = db.Column(db.Numeric)
 
-    item = db.relationship('Item', foreign_keys=[ItemGUID], primaryjoin='SOLine.ItemGUID == Item.GUID', lazy='joined')
+    #item = db.relationship('Item', foreign_keys=[ItemGUID], primaryjoin='SOLine.ItemGUID == Item.GUID', lazy='joined')

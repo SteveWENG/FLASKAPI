@@ -2,7 +2,7 @@
 
 from ..EXACT import db, EXACT
 
-class Items(EXACT):
+class Item(EXACT):
     __tablename__ = 'items'
 
     Code = db.Column('itemcode')

@@ -7,3 +7,4 @@ class CCMast(erp):
 
     CostCenterCode = db.Column()
     Company = db.Column()
+    DBName = db.Column()

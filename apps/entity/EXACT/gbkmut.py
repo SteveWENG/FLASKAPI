@@ -3,7 +3,7 @@ from sqlalchemy import func, select, case, and_
 import pymssql
 import pandas as pd
 
-from .Item import Items
+from .Item import Item as ExactItem
 from .ItemAssortment import ItemAssortment
 from .grtbk import grtbk
 from ..EXACT import db, EXACT
@@ -26,11 +26,11 @@ class gbkmut(EXACT):
     def ClosingStock(cls, dbName, costCenterCode):
         try:
             tmpsql = cls.query.join(grtbk, cls.COACode == grtbk.COACode) \
-                .join(Items, cls.ItemCode == Items.Code) \
-                .join(ItemAssortment, Items.Assortment == ItemAssortment.Assortment) \
+                .join(ExactItem, cls.ItemCode == ExactItem.Code) \
+                .join(ItemAssortment, ExactItem.Assortment == ItemAssortment.Assortment) \
                 .join(magaz, gbkmut.Warehouse == magaz.Code) \
                 .filter(magaz.Name == costCenterCode,
-                        cls.COACode == func.coalesce(Items.GLAccountDistribution, ItemAssortment.GLStock),
+                        cls.COACode == func.coalesce(ExactItem.GLAccountDistribution, ItemAssortment.GLStock),
                         cls.ReminderCount <= 99, cls.TransType.in_(('N', 'C', 'P', 'X')),
                         grtbk.omzrek.in_(('G', 'K', 'N')), func.abs(func.coalesce(gbkmut.Qty, 0)) > 1 / 1000000) \
                 .with_entities(cls.ItemCode.label('ItemCode'), cls.TransDate.label('TransDate'),
