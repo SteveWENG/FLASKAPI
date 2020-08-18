@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
-
 import importlib
 
-from sqlalchemy import func
-
 from ..entity.EXACT.gbkmut import gbkmut
+from ..entity.erp.Stock import TransData
 from ..entity.erp.common.Apps import Apps
 from ..utils.functions import Error
 
@@ -33,7 +31,8 @@ class StockHelper:
     def UpdateOpenningStock(data):
         try:
             costCenterCode = data.get('costCenterCode')
-            gbkmut.ClosingStock(costCenterCode)
-            x = 1
+            tmpList = gbkmut.ClosingStock(data.get('dbName'),costCenterCode)
+
+            return TransData.UpdateOpenningStock(costCenterCode,data.get('creater',''),tmpList)
         except Exception as e:
             raise e

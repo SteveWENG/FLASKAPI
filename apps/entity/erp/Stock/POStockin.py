@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from sqlalchemy import and_
-from aden.apps.utils.functions import Error
+from ....utils.functions import Error
 from .Stockin import Stockin
 from ..Order.OrderLine import OrderLine
 

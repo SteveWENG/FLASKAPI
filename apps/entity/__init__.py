@@ -8,7 +8,7 @@ db = SQLAlchemy()
 class BaseModel(db.Model):
     __abstract__ = True
 
-    Id = db.Column(db.String, primary_key = True)
+    Id = db.Column(db.Integer, primary_key = True)
 
     # dict to BaseModel
     # d is a dict

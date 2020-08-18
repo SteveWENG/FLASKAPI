@@ -8,7 +8,6 @@ from ....utils.functions import *
 from ...erp import erp, db
 
 class TransData(erp):
-    __bind_key__ = 'salesorder'
     __tablename__ = 'tblTransData'
 
     CostCenterCode = db.Column()
@@ -88,12 +87,35 @@ class TransData(erp):
         if li.empty:
             return li
 
+        matchedFields = [s for s in li if s.lower() in ('itemcode','itemcost')]
+        qtyField = ''.join([s for s in li if s.lower()=='qty'])
         li = li.reset_index(drop=True)
         for x in range(len(li)-1, 0, -1):
             # 相同ItemCode/ItemCost
-            if ''.join([s for s in li if s.lower() in ('itemcode', 'itemcost')
-                                         and li.loc[x,s] != li.loc[x-1,s]]) == '':
-                li.loc[x-1,'qty'] = li.loc[x-1,'qty'] + li.loc[x,'qty']
-                li.loc[x,'qty'] = 0
+            if ''.join([s for s in matchedFields if li.loc[x,s] != li.loc[x-1,s]]) == '':
+                li.loc[x-1,qtyField] = li.loc[x-1,qtyField] + li.loc[x,qtyField]
+                li.loc[x,qtyField] = 0
 
-        return li[li.qty != 0].to_dict('records')
+        return li[li[qtyField] != 0].reset_index(drop=True) #.to_dict('records')
+
+    @classmethod
+    def UpdateOpenningStock(cls,costCenterCode, creater, li):
+        try:
+            if li.empty:
+                li = li.append([{'TransDate': datetime.date.today()}], ignore_index=False)
+                li = li.where(li.notnull(),None)
+
+            li = li.drop(['Id', 'OutQty', 'RunningQty'], axis=1)
+
+            li['CreateUser'] = creater
+            li['CostCenterCode'] = costCenterCode
+            li['BusinessType'] = 'OpenningStock'
+            li['TransGuid'] = getGUID()
+            li = cls.ZipStockList(li).to_dict('records')
+            with cls.adds(li) as _:
+                pass
+            # li.to_sql('TransData', db.get_engine(db.get_app(),cls.__bind_key__), if_exists='replace')
+
+            return 'Sucessfull update openning stock of ' + costCenterCode
+        except Exception as e:
+            raise e
