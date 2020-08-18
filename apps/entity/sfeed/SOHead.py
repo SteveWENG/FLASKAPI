@@ -57,7 +57,7 @@ class SOHead(sfeed):
                 Error('该订单已发货，请重新确认订单号')
 
             groupbyfields = ['OrderId', 'UserName', 'OrderDate']
-            # so['OrderDate'] = so['OrderDate'].map(lambda x: x.strftime('%Y-%m-%d'))
+            so['OrderDate'] = so['OrderDate'].map(lambda x: x.strftime('%Y-%m-%d'))
             so['OrderId'] = so['OrderId'].astype(str)
 
             so = so.groupby(groupbyfields, as_index=False)
