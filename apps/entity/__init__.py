@@ -37,6 +37,9 @@ class BaseModel(db.Model):
                           for attr in state.attrs])
         return f"<User {attrs}>"
 
+    def to_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+
     @classmethod
     def getBind(cls):
         return db.get_engine(db.get_app(), cls.__bind_key__)

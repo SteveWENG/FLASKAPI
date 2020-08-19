@@ -23,45 +23,39 @@ class gbkmut(EXACT):
     ReminderCount = db.Column(db.Integer)
 
     @classmethod
-    def ClosingStock(cls, dbName, costCenterCode):
+    def ClosingStock(cls, dbsites):
         try:
-            tmpsql = cls.query.join(grtbk, cls.COACode == grtbk.COACode) \
-                .join(ExactItem, cls.ItemCode == ExactItem.Code) \
-                .join(ItemAssortment, ExactItem.Assortment == ItemAssortment.Assortment) \
-                .join(magaz, gbkmut.Warehouse == magaz.Code) \
-                .filter(magaz.Name == costCenterCode,
-                        cls.COACode == func.coalesce(ExactItem.GLAccountDistribution, ItemAssortment.GLStock),
-                        cls.ReminderCount <= 99, cls.TransType.in_(('N', 'C', 'P', 'X')),
-                        grtbk.omzrek.in_(('G', 'K', 'N')), func.abs(func.coalesce(gbkmut.Qty, 0)) > 1 / 1000000) \
-                .with_entities(cls.ItemCode.label('ItemCode'), cls.TransDate.label('TransDate'),
-                               cls.Id, cls.Qty.label('Qty'),
-                               func.sum(case([(cls.Qty > 0, cls.Qty)], else_=0))
-                               .over(partition_by=cls.ItemCode, order_by=[cls.TransDate,cls.Id])
-                               .label('RunningQty'),
-                               func.sum(case([(cls.Qty < 0, cls.Qty)], else_=0))
-                               .over(partition_by=cls.ItemCode)
-                               .label('OutQty'),
-                               func.round(case([(cls.Qty > 0, func.coalesce(cls.Amt,0)/cls.Qty)], else_=0),6)
-                               .label('ItemCost')).subquery()
+            li = pd.DataFrame([])
+            if dbsites == None or len(dbsites)==0:
+                return li
 
-            tmpsql = select([tmpsql])\
-                .where(and_(func.round(tmpsql.c.Qty,6)>1/1000000,
-                       func.round(tmpsql.c.RunningQty+tmpsql.c.OutQty,6)>1/1000000))\
-                .select_from(tmpsql)
+            for l in dbsites:
+                sites = l.get('sites',[])
+                db = l.get('db','')
+                if len(sites) == 0 or db == '':
+                    continue
 
-            dbconfig = cls.dbConfig
-            dbconfig['database'] = str(dbName)
-            with pymssql.connect(**dbconfig) as conn:  #host='192.168.0.98:1433', user='sa', password='gladis0083',database='120') as conn:
-                tmpList = pd.read_sql(str(tmpsql.compile(compile_kwargs={'literal_binds':True})), conn)
-                # db.get_engine(db.get_app(),cls.__bind_key__).connect())
+                tmpsql = cls.query.join(grtbk, cls.COACode == grtbk.COACode) \
+                    .join(ExactItem, cls.ItemCode == ExactItem.Code) \
+                    .join(ItemAssortment, ExactItem.Assortment == ItemAssortment.Assortment) \
+                    .join(magaz, gbkmut.Warehouse == magaz.Code) \
+                    .filter(magaz.Name.in_(sites),
+                            cls.COACode == func.coalesce(ExactItem.GLAccountDistribution, ItemAssortment.GLStock),
+                            cls.ReminderCount <= 99, cls.TransType.in_(('N', 'C', 'P', 'X')),
+                            grtbk.omzrek.in_(('G', 'K', 'N')), func.abs(func.coalesce(gbkmut.Qty, 0)) > 1 / 1000000) \
+                    .with_entities(magaz.Name.label('CostCenterCode'), cls.ItemCode.label('ItemCode'),
+                                   func.round(func.sum(func.coalesce(cls.Qty,0)),6).label('Qty'),
+                                   func.round(func.sum(func.coalesce(cls.Amt,0)),6).label('Amt'))\
+                    .group_by(magaz.Name,cls.ItemCode)\
+                    .having(func.abs(func.round(func.sum(func.coalesce(cls.Qty,0)),6)) > 1/1000000)
 
-            if tmpList.empty:
-                return tmpList
+                dbconfig = cls.dbConfig
+                dbconfig['database'] = str(db)
+                with pymssql.connect(**dbconfig) as conn:  #host='192.168.0.98:1433', user='sa', password='gladis0083',database='120') as conn:
+                    li = li.append(pd.read_sql(str(tmpsql.statement.compile(compile_kwargs={'literal_binds':True})), conn))
 
-            tmpList.loc[tmpList['Qty']>(tmpList['RunningQty']+tmpList['OutQty']),'Qty'] =\
-                tmpList['RunningQty']+tmpList['OutQty']
-            tmpList = tmpList.sort_values(by=['ItemCode', 'TransDate', 'Id'], axis=0).reset_index(drop=True)
-
-            return tmpList
+            li['ItemCost'] = li['Amt'] / li['Qty']
+            li = li.drop(['Amt'], axis=1)
+            return li
         except Exception as e:
             raise e

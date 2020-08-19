@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 import importlib
 
+import pandas as pd
+
 from ..entity.EXACT.gbkmut import gbkmut
 from ..entity.erp.Stock import TransData
 from ..entity.erp.common.Apps import Apps
 from ..entity.erp.common.CCMast import CCMast
-from ..utils.functions import Error
+from ..utils.functions import *
 
 
 
@@ -31,15 +33,22 @@ class StockHelper:
     @staticmethod
     def UpdateOpenningStock(data):
         try:
-            costCenterCode = data.get('costCenterCode')
-            if TransData.query.filter(TransData.CostCenterCode == costCenterCode).first() != None:
-                return 'Already updated the openning stock of ' + costCenterCode
+            codes = [getStr(s) for s in data.get('costCenterCodes').split(',')]
+            tmpcodes = TransData.query.filter(TransData.CostCenterCode.in_(codes),
+                                              TransData.BusinessType=='OpenningStock')\
+                .with_entities(TransData.CostCenterCode).distinct().all()
+            tmpcodes = list(set(codes).difference(set([getStr(s.CostCenterCode) for s in tmpcodes])))
+            if len(tmpcodes) == 0 :
+               return 'Already updated their openning stock'
 
-            dbName = CCMast.query.filter(CCMast.CostCenterCode == costCenterCode)\
-                .with_entities(CCMast.DBName).scalar()
+            tmpsql = CCMast.query.filter(CCMast.CostCenterCode.in_(tmpcodes))\
+                .distinct(CCMast.DBName,CCMast.CostCenterCode)
+            tmpList = pd.read_sql(tmpsql.statement, CCMast.getBind())
+            tmpList = [{'db': k, 'sites': ls.CostCenterCode.tolist()}
+                      for k, ls in tmpList.groupby('DBName',as_index=False)]
 
-            tmpList = gbkmut.ClosingStock(dbName,costCenterCode)
+            tmpList = gbkmut.ClosingStock(tmpList)
 
-            return TransData.UpdateOpenningStock(costCenterCode,data.get('creater',''),tmpList)
+            return TransData.UpdateOpenningStock(tmpList)
         except Exception as e:
             raise e

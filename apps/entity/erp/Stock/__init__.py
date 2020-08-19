@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from operator import attrgetter
-
-from sqlalchemy import func, select, and_, or_
+import random
+from sqlalchemy import func, select, and_, or_, case
 import pandas as pd
 
 from ....utils.functions import *
@@ -44,10 +44,24 @@ class TransData(erp):
     #库存查询
     @classmethod
     def show(cls, costCenterCode, date=datetime.date.today(), itemcodes=None):
-        filters = [cls.CostCenterCode==costCenterCode]
+        filters = [cls.CostCenterCode==costCenterCode, cls.TransDate<=date]
         if itemcodes != None and len(itemcodes) > 0:
             filters.append(cls.ItemCode.in_(itemcodes))
 
+        tmpsql = cls.query.filter(*filters, func.abs(func.round(func.coalesce(cls.Qty,0),6))>1/1000000)\
+            .with_entities(cls.ItemCode,cls.TransDate.label('INDATE'),cls.ItemCost,
+                           func.round(cls.Qty,6).label('InQty'),
+                           func.max(case([(cls.Qty > 0, cls.Id)], else_=0)).over().label('MAXINID'),
+                           func.max(case([(cls.Qty < 0, cls.Id)], else_=0)).over().label('MAXOUTID'),
+                           func.sum(case([(cls.Qty>0, cls.Qty)],else_=0))
+                           .over(partition_by=cls.ItemCode,order_by=[cls.TransDate, cls.Id]).label('EndQty'),
+                           func.sum(case([(cls.Qty<0, cls.Qty)],else_=-1))
+                           .over(partition_by=cls.ItemCode).label('OutQty')).subquery()
+        tmpsql = select([tmpsql]).where(and_(tmpsql.c.InQty>0,func.round(tmpsql.c.EndQty+tmpsql.c.OutQty,6)>0))\
+            .select_from(tmpsql)
+        tmpList = pd.read_sql(tmpsql, cls.getBind())
+
+        '''
         #出库总和
         tmpOut = cls.query.filter(*filters,cls.Qty < 0)\
             .with_entities(cls.ItemCode,func.max(cls.Id).label('OUTID'),func.sum(cls.Qty).label('OutQty'))\
@@ -71,15 +85,20 @@ class TransData(erp):
         # 无库存
         if tmpList and len(tmpList) == 0:
             return None
-
+            
         tmpList = pd.DataFrame([{k:v for k,v in l.items() if k != 'RunningQty'}
                                 for l in sorted(tmpList, key=attrgetter('ItemCode','INDATE','Id'),
                                                 reverse=False)])
+        '''
+        # 无库存
+        if tmpList.empty:
+            return None
 
-        tmpList['StartQty'] = tmpList.apply(lambda l: max(getNumber(l.get('EndQty'))
-                                                          - getNumber(l.get('InQty')), 0), axis=1)
-        #tmpList.loc[tmpList['StartQty']==0,'InQty'] = tmpList['EndQty'].map(lambda v: getNumber(v))
-
+        tmpList['EndQty'] = tmpList['EndQty'] + tmpList['OutQty']
+        tmpList['StartQty'] = tmpList['EndQty'] - tmpList['InQty'] #tmpList.apply(lambda l: max(getNumber(l.get('EndQty')) - getNumber(l.get('Qty')), 0), axis=1)
+        tmpList.loc[tmpList['StartQty']<0,'StartQty'] = 0
+        tmpList.loc[tmpList['StartQty']==0, 'InQty'] = tmpList['EndQty']
+        tmpList = tmpList.drop(['OutQty'],axis=1)
         return tmpList
 
     @classmethod
@@ -88,6 +107,9 @@ class TransData(erp):
             return li
 
         matchedFields = [s for s in li if s.lower() in ('itemcode','itemcost')]
+        if len(li) == len(li.groupby(matchedFields)):
+            return li
+
         qtyField = ''.join([s for s in li if s.lower()=='qty'])
         li = li.reset_index(drop=True)
         for x in range(len(li)-1, 0, -1):
@@ -99,16 +121,11 @@ class TransData(erp):
         return li[li[qtyField] != 0].reset_index(drop=True) #.to_dict('records')
 
     @classmethod
-    def UpdateOpenningStock(cls,costCenterCode, creater, li):
+    def UpdateOpenningStock(cls, li):
         try:
             if li.empty:
-                li = li.append([{'TransDate': datetime.date.today()}], ignore_index=False)
-                li = li.where(li.notnull(),None)
+                return 'No openning stock'
 
-            li = li.drop(['Id', 'OutQty', 'RunningQty'], axis=1)
-
-            li['CreateUser'] = creater
-            li['CostCenterCode'] = costCenterCode
             li['BusinessType'] = 'OpenningStock'
             li['TransGuid'] = getGUID()
             li = cls.ZipStockList(li).to_dict('records')
@@ -116,6 +133,6 @@ class TransData(erp):
                 pass
             # li.to_sql('TransData', db.get_engine(db.get_app(),cls.__bind_key__), if_exists='replace')
 
-            return 'Sucessfully update openning stock of ' + costCenterCode
+            return 'Sucessfully update your openning stock'
         except Exception as e:
             raise e

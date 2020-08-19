@@ -42,7 +42,9 @@ def getInt(o):
         raise e
 
 
-def getNumber(d):
+def getNumber(*d):
+    # li = tuple([Decimal(str(x)) if getStr(x) != '' else 0 for x in d])
+    # return li if len(li) > 1 else li[0]
     if getStr(d) == '':
         return 0
     return Decimal(str(d))

@@ -23,23 +23,24 @@ class Stockout(TransData):
 
             stockout = pd.DataFrame(data.get('data'))
 
-            li = merge(stockout, itemcosts, left_on='itemCode', right_on='ItemCode' )
-            if len(li[li.EndQty >= li.qty].groupby('itemCode')) < len(itemcosts.groupby('ItemCode')):
-                Error('Shortage of some stock')
+            li = merge(stockout, itemcosts, left_on='itemCode', right_on='ItemCode')
+            s = ''.join(list(set(itemcosts.groupby('ItemCode').groups.keys())
+                             .difference(set(li[li.EndQty >= li.qty].groupby('ItemCode').groups.keys()))))
+            if s != '':
+                Error('Shortage of some stock of (%s)' %s)
 
             # FIFO
             li = li[li.StartQty < li.qty]
             # 分摊出库数量
             li['qty'] = li.apply(lambda l: l['StartQty'] - min(l['qty'],l['EndQty']),axis=1)
 
-            li = li.drop(['Id','itemCost','ItemCode','InQty','StartQty','EndQty'], axis=1)\
+            li = li.drop(['itemCost','ItemCode','InQty','StartQty','EndQty'], axis=1)\
                 .rename(columns={'ItemCost': 'itemCost'})
 
             item_dates = li.groupby('itemCode', as_index=False).agg({'INDATE': max}).to_dict('records')
-            MAXINID = getNumber(itemcosts.loc[0,'MAXINID'])
-            MAXOUTID = getNumber(itemcosts['OUTID'].max())
+            MAXINID, MAXOUTID = itemcosts.loc[0,['MAXINID','MAXOUTID']]
 
-            li = [dict(l, **dic) for l in cls.ZipStockList(li)]
+            li = [dict(l, **dic) for l in cls.ZipStockList(li).to_dict('records')]
 
             with cls.adds(li) as session:
                 # FIFO之后有新入库
@@ -51,9 +52,9 @@ class Stockout(TransData):
                 tmp = cls.query.filter(cls.CostCenterCode==dic.get('costCenterCode'),
                                        cls.ItemCode.in_([l.get('itemCode') for l in item_dates]),
                                        cls.TransGuid != dic.get('transGuid'),
-                                       or_( and_(cls.Qty<0, or_(cls.TransDate > dic.get('transDate'), # 有以后的出库
-                                                                cls.Id > MAXOUTID)),                  # FIFO之后有出库
-                                            and_(cls.Qty>0, cls.Id >MAXINID, or_(*infilters)))).first()
+                                       or_(and_(cls.Qty<0, or_(cls.TransDate > dic.get('transDate'), # 有以后的出库
+                                                                cls.Id > getInt(MAXOUTID))),  # FIFO之后有出库
+                                           and_(cls.Qty>0, cls.Id >getInt(MAXINID), or_(*infilters)))).first()
                 if tmp == None:
                     return 'Sucessfully save stockout'
 
