@@ -42,7 +42,8 @@ class gbkmut(EXACT):
                     .filter(magaz.Name.in_(sites),
                             cls.COACode == func.coalesce(ExactItem.GLAccountDistribution, ItemAssortment.GLStock),
                             cls.ReminderCount <= 99, cls.TransType.in_(('N', 'C', 'P', 'X')),
-                            grtbk.omzrek.in_(('G', 'K', 'N')), func.abs(func.coalesce(gbkmut.Qty, 0)) > 1 / 1000000) \
+                            grtbk.omzrek.in_(('G', 'K', 'N')),
+                            func.abs(func.coalesce(gbkmut.Qty, 0)) > 1 / 1000000) \
                     .with_entities(magaz.Name.label('CostCenterCode'), cls.ItemCode.label('ItemCode'),
                                    func.round(func.sum(func.coalesce(cls.Qty,0)),6).label('Qty'),
                                    func.round(func.sum(func.coalesce(cls.Amt,0)),6).label('Amt'))\

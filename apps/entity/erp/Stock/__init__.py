@@ -128,6 +128,10 @@ class TransData(erp):
 
             li['BusinessType'] = 'OpenningStock'
             li['TransGuid'] = getGUID()
+
+            now = datetime.date.today()
+            li['TransDate'] = datetime.date(now.year,now.month,1) + datetime.timedelta(days=-1)
+
             li = cls.ZipStockList(li).to_dict('records')
             with cls.adds(li) as _:
                 pass
