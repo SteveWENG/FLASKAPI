@@ -5,7 +5,7 @@ from werkzeug.utils import import_string
 from .entity import db
 from .config import Config
 
-blueprints = ['wechat', 'sfeed', 'stock']
+blueprints = ['wechat', 'sfeed', 'stock','user']
 
 # 函数工厂
 def create_app():
