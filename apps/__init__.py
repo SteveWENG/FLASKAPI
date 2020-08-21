@@ -3,7 +3,7 @@ from flask_cors import CORS
 from werkzeug.utils import import_string
 
 from .entity import db
-from .config import Config
+from config import Config
 
 blueprints = ['wechat', 'sfeed', 'stock','user']
 

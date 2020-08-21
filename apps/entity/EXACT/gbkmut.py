@@ -48,9 +48,9 @@ class gbkmut(EXACT):
                                    func.round(func.sum(func.coalesce(cls.Qty,0)),6).label('Qty'),
                                    func.round(func.sum(func.coalesce(cls.Amt,0)),6).label('Amt'))\
                     .group_by(magaz.Name,cls.ItemCode)\
-                    .having(func.abs(func.round(func.sum(func.coalesce(cls.Qty,0)),6)) > 1/1000000)
+                    .having(func.round(func.sum(func.coalesce(cls.Qty,0)),6) > 1/1000000)
 
-                dbconfig = cls.dbConfig
+                dbconfig = cls.dbconnect
                 dbconfig['database'] = str(db)
                 with pymssql.connect(**dbconfig) as conn:  #host='192.168.0.98:1433', user='sa', password='gladis0083',database='120') as conn:
                     li = li.append(pd.read_sql(str(tmpsql.statement.compile(compile_kwargs={'literal_binds':True})), conn))

@@ -10,3 +10,12 @@ class Config:
         'sfeed': 'mssql+pymssql://sa:gladis0083@192.168.0.80/sfeed',
 
     }
+
+class ExactConfig:
+
+    db = {
+        'host': '192.168.0.98', 'port': '1433',
+        'user': 'sa', 'password':'gladis0083',
+        'database': '110',
+        #'charset':'utf8'
+    }
