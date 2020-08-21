@@ -52,7 +52,8 @@ class UserHelper:
 
                 if companysforcostcenter == None and companys:
                     companysforcostcenter = companys
-                costcenters = list(set(costcenters + CCMast.show(companysforcostcenter)))
+
+                costcenters = CCMast.show(companysforcostcenter, costcenters)
 
             #全部company
             if (dataType == '' or dataType == 'company') and 'company' in types:
