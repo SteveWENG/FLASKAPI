@@ -20,9 +20,8 @@ class AppUserData(erp):
     @classmethod
     def apps(cls, userGuid, langCode):
         try:
-            qry= cls.__AppQuery(userGuid)
-            Apps.lang = langCode.upper()
-            li = qry.with_entities(cls.AppGuid,Apps.PGuid, Apps.AppName,Apps.ReportGuid, Apps.Action)\
+            li = cls.__AppQuery(userGuid).with_entities(cls.AppGuid,Apps.PGuid, Apps.ReportGuid, Apps.Action,
+                                                        Apps.AppName(langCode).label('AppName'))\
                 .distinct().all()
             return [{'guid': l.AppGuid, 'name':l.AppName, 'pguid':getStr(l.PGuid),
                      'reportGuid':getStr(l.ReportGuid),'action':getStr(l.Action)}

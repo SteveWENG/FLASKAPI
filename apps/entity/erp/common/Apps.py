@@ -1,14 +1,13 @@
 # -*- coding: utf-8 -*-
 
 import pandas as pd
-from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.ext.hybrid import hybrid_method
 from sqlalchemy.orm.base import manager_of_class
 
 from ...erp import erp, db
 
 class Apps(erp):
     __tablename__ = 'tblApps'
-    lang = 'EN'
 
     Guid = db.Column()
     PGuid = db.Column()
@@ -20,13 +19,13 @@ class Apps(erp):
     ClassName = db.Column()
     Status = db.Column(db.Boolean)
 
-    @hybrid_property
-    def AppName(self):
-        column = '_AppName' + Apps.lang
-        if column[1:] in manager_of_class(Apps).mapper.mapped_table.columns.keys():
-            return getattr(self, column)
+    @hybrid_method
+    def AppName(cls, lang):
+        column = '_AppName' + lang.upper()
+        if column[1:] in manager_of_class(cls).mapper.mapped_table.columns.keys():
+            return getattr(cls, column)
 
-        return self._AppName
+        return cls._AppName
 
     @classmethod
     def ParentApps(cls, guid):
