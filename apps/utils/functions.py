@@ -49,9 +49,8 @@ def getNumber(*d):
         return 0
     return Decimal(str(d))
 
-
-def Error(err):
-    raise RuntimeError(err)
+def Error(error):
+    raise RuntimeError(error)
 
 def ErrorExit(error):
     abort(jsonify({'status': 500, 'error': error}))

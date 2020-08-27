@@ -12,17 +12,17 @@ class WechatHelper:
 
     def __init__(self, AppName = None):
         if getStr(AppName) == '':
-            raise RuntimeError('No parameter of AppName')
+            Error('No parameter of AppName')
 
         self._wechatConfig = WechatConfig.query.filter(WechatConfig.AppName == AppName).first()
 
         if self._wechatConfig == None:
-            raise RuntimeError('Not found the wechat config')
+            Error('Not found the wechat config')
         
     #RedirectUrl
     def getCodeUrl(self, RedirectUrl = None):
         if getStr(RedirectUrl) == '':
-            raise RuntimeError('No paramenters of RedirectUrl')          
+            Error('No paramenters of RedirectUrl')
 
         url = 'https://open.weixin.qq.com/connect/oauth2/authorize?'
         url += 'appid={0}&redirect_uri={1}&response_type=code&scope=snsapi_base&state=STATE#wechat_redirect'
@@ -31,7 +31,7 @@ class WechatHelper:
 
     def GetUserInfo(self, code):
         if getStr(code) == '':
-            raise RuntimeError('微信认证缺少必填参数code！')
+            Error('微信认证缺少必填参数code！')
         
         try:
             url = 'https://api.weixin.qq.com/sns/userinfo?access_token={0}&openid={1}'
@@ -77,11 +77,11 @@ class WechatHelper:
     def _AccessToken(self):        
         url = "http://mall.adenchina.net/jc/api/AccessToken.ashx";
         if self._wechatConfig.AppName != 'OfficialAccount':
-            raise RuntimeError('Not define AccessToken of ' + self._wechatConfig.AppName)
+            Error('Not define AccessToken of ' + self._wechatConfig.AppName)
         try:
             tmp = httpget(url)
             if getStr(tmp) == '':
-                raise RuntimeError("Can't get access token")
+                Error("Can't get access token")
 
             return tmp
         except Exception as e:
@@ -93,7 +93,7 @@ class WechatHelper:
 
             dictinfo = json.loads(restext)
             if getStr(dictinfo.get('errcode','0')) != '0':
-                raise RuntimeError(restext) #显示错误代码和信息
+                Error(restext) #显示错误代码和信息
 
             return dictinfo
         except Exception as e:

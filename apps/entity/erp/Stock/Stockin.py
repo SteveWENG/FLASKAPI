@@ -1,49 +1,33 @@
 # -*- coding: utf-8 -*-
 from sqlalchemy import and_, or_, func
+import pandas as pd
 
+from ..common.LangMast import LangMast
 from ....utils.functions import *
 from ..Stock import TransData
 
 class Stockin(TransData):
     type = 'Stockin'
 
+    # StockItems, NewId
     @classmethod
-    def save(cls, data):
+    def save_check(cls, data):
         try:
-            dic, itemcodes = cls.PrepareSave(data)
-            if data.get('supplierCode','') != '':
-                dic['supplierCode'] = data.get('supplierCode')
+            if not cls._MAXTRANSID:
+                Error(LangMast.getText('7F6D4A6B-8F9B-425E-82CE-5E4D6FC8A147')) # Error in check data after saved
 
-            #Purchase UOM => Stock UOM
-            #去除无值的字段
-            li = [{k:v for k,v in dict(dict(l,**{'qty':getNumber(l.get('purQty'))
-                                                       * getNumber(l.get('purStkConversion')),
-                                 'itemCost': round(getNumber(l.get('purPrice'))
-                                                   / getNumber(l.get('purStkConversion')),6)})
-                       if not l.get('qty') and getNumber(l.get('purStkConversion')) != 0 else l , **dic)
-                .items() if getStr(v) != ''} for l in data.get('data')]
+            if cls.query.filter(cls.CostCenterCode == data[0].get('costCenterCode'),
+                                cls.ItemCode.in_(cls._StockItems),
+                                or_(cls.Qty < 0,                                           # 出库
+                                    and_(cls.Qty > 0,                                      # 入库
+                                         or_(cls.TransDate < getDate(data[0].get('transDate')),        # 之前的入库
+                                             and_(cls.TransDate == getDate(data[0].get('transDate')),  # 同一天的入库
+                                                  cls.Id < cls._MAXTRANSID))))) \
+                    .with_entities(cls.ItemCode).group_by(cls.ItemCode) \
+                    .having(func.sum(cls.Qty) < 0).first() != None:
+                # Can't save PO receipt, because of some stockout after"
+                Error(LangMast.getText('DD78E099-DF9D-49CD-95FA-C5C882D281B1') % data[0].get('transDate'))
 
-            with cls.adds(li) as session:
-                #插入的记录数，和插入记录的min(Id)
-                news = session.query(func.count(cls.Id), func.min(cls.Id))\
-                    .filter(cls.TransGuid == dic.get('transGuid')).first()
-                if news == None or news[0] != len(li):
-                    Error('Error in save data')
-
-                #判断本TransDate之前的Stock<0
-                if session.query(cls).filter(cls.CostCenterCode == dic.get('costCenterCode'),
-                                             cls.ItemCode.in_(itemcodes)) \
-                        .filter(or_(cls.Qty < 0, and_(cls.Qty > 0, or_(cls.TransDate < getDate(dic.get('transDate')),
-                                                                       and_(cls.TransDate == getDate(dic.get('transDate')),
-                                                                            cls.Id < news[1]))))) \
-                        .with_entities(cls.ItemCode).group_by(cls.ItemCode) \
-                        .having(func.sum(cls.Qty) < 0).first() != None:
-                    Error("Can't save PO receipt, because of some stockout after %s" % data.get('date'))
-
-                if hasattr(cls, 'save_check_update'):
-                    return cls.save_check_update(li)
-
-                return 'Successfully save stockin'
-
+            return LangMast.getText('AAD1B983-1252-46F5-8136-9CADC200822E') # Successfully save stockin
         except Exception as e:
             raise e

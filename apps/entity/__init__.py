@@ -3,6 +3,8 @@ from contextlib import contextmanager
 import functools
 from sqlalchemy import inspect
 
+from ..utils.functions import getStr
+
 db = SQLAlchemy()
 
 class BaseModel(db.Model):
@@ -17,7 +19,7 @@ class BaseModel(db.Model):
 
         for k, v in d.items():
             tmpkey = ''.join([f for f in fields if f.lower() == k.lower()]) #不分大小写，找出对应的属性
-            if tmpkey == '':
+            if tmpkey == '' or getStr(v) == '':  #无值
                 continue
 
             setattr(self, tmpkey, self._wrap(v))
