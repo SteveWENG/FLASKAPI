@@ -14,7 +14,10 @@ class BaseModel(db.Model):
 
     # dict to BaseModel
     # d is a dict
-    def __init__(self, d):
+    def __init__(self, d=None):
+        if not d:
+            return
+
         fields = dir(self) #所有属性
 
         for k, v in d.items():

@@ -6,7 +6,7 @@ import pandas as pd
 
 from ....utils.functions import *
 from ...erp import erp, db
-from ..common.LangMast import LangMast
+from ..common.LangMast import lang
 
 
 class TransData(erp):
@@ -29,9 +29,6 @@ class TransData(erp):
     ItemCost = db.Column(db.Numeric)
     ItemPrice = db.Column(db.Numeric)
 
-    _MAXTRANSID = None
-    _StockItems = None
-
     def todict(self):
         return {c.name: getattr(self, c.name, None) for c in self.__table__.columns if getattr(self, c.name, None) != None}
 
@@ -48,46 +45,49 @@ class TransData(erp):
         return {'costCenterCode': data.get('costCenterCode', ''), 'createUser': data.get('creater', ''),
                 'transDate': data.get('date', ''), 'transGuid': getGUID(), 'BusinessType': cls.type}
 
-    @classmethod
-    def save(cls, data):
+    def save(self, data):
         try:
             if not data.get('data'):
-                Error(LangMast.getText('0CD4331A-BCD2-468A-A18A-EE4EDA2FF0EE')) # No data to save
+                Error(lang('0CD4331A-BCD2-468A-A18A-EE4EDA2FF0EE')) # No data to save
 
-            dic = cls.SummaryInfo(data)
+            dic = self.SummaryInfo(data)
             if data.get('supplierCode','') != '':
                 dic['supplierCode'] = data.get('supplierCode')
+            if data.get('orderGuid','') != '':
+                dic['orderGuid'] = data.get('orderGuid')
 
-            tmpStockItems = cls.StockItemTrans(data.get('data'))
-            cls._StockItems = set([l.get('itemCode') for l in tmpStockItems])
-            li = cls.SaveData(tmpStockItems,cls.ServiceItemTrans(data.get('data')), **dic)
+            self._MAXTRANSID = None
+            self._StockItems = None
+
+            tmpStockItems = self.StockItemTrans(data.get('data'))
+            self._StockItems = set([l.get('itemCode') for l in tmpStockItems])
+            li = self.SaveData(tmpStockItems,self.ServiceItemTrans(data.get('data')), **dic)
 
             if not li:
-                Error(LangMast.getText('0CD4331A-BCD2-468A-A18A-EE4EDA2FF0EE')) # No data to save
+                Error(lang('0CD4331A-BCD2-468A-A18A-EE4EDA2FF0EE')) # No data to save
 
             li = [dict({k:v for k,v in l.items() if getStr(v) != ''}, **dic) for l in li]
 
-            with cls.adds(li) as session:
+            with self.adds(li) as session:
                 # 插入的记录数，和插入记录的min(Id)
-                news = session.query(func.count(cls.Id), func.min(cls.Id)) \
-                    .filter(cls.TransGuid == dic.get('transGuid')).first()
+                news = session.query(func.count(TransData.Id), func.min(TransData.Id)) \
+                    .filter(TransData.TransGuid == dic.get('transGuid')).first()
                 if not news or news[0] != len(li):
-                    Error(LangMast.getText('B03FCA74-D2B4-4504-842E-3A7FD649432F')) # Faild to save data
+                    Error(lang('B03FCA74-D2B4-4504-842E-3A7FD649432F')) # Faild to save data
 
-                if not cls._MAXTRANSID :
-                    cls._MAXTRANSID = news[1]
-                if hasattr(cls, 'save_check'):
-                   return cls.save_check(li)
+                if not self._MAXTRANSID :
+                    self._MAXTRANSID = news[1]
+                if hasattr(self, 'save_check'):
+                   return self.save_check(li)
 
-                return LangMast.getText('F7083ED1-26B3-4BD2-82FD-976C401D4CC0') # Successfully saved stock transactions
+                return lang('F7083ED1-26B3-4BD2-82FD-976C401D4CC0') # Successfully saved stock transactions
         except Exception as e:
             raise e
 
-    @classmethod
-    def PrepareSave(cls, data):
+    def PrepareSave(self, data):
         try:
             dic = {'costCenterCode': data.get('costCenterCode', ''), 'createUser': data.get('creater', ''),
-                   'transDate': data.get('date', ''), 'transGuid': getGUID(), 'BusinessType': cls.type}
+                   'transDate': data.get('date', ''), 'transGuid': getGUID(), 'BusinessType': self.type}
 
             itemcodes = [] #set([l.get('itemCode') for l in stockItems])
             if len(itemcodes) == 0:
@@ -100,7 +100,7 @@ class TransData(erp):
     @classmethod
     def FIFO(cls, costCenterCode, date=datetime.date.today(), itemcodes=None):
         if itemcodes == None: # None 无；[] 全部
-            Error(LangMast.getText('0CD4331A-BCD2-468A-A18A-EE4EDA2FF0EE')) # No data
+            Error(lang('0CD4331A-BCD2-468A-A18A-EE4EDA2FF0EE')) # No data
 
         filters = [cls.CostCenterCode==costCenterCode, cls.TransDate<=date]
         if itemcodes != None and len(itemcodes) > 0:
@@ -122,7 +122,7 @@ class TransData(erp):
 
         # 无库存
         if tmpList.empty:
-            Error(LangMast.getText('2CF04A40-C498-406F-964E-36C0B17EC765')) # No stock
+            Error(lang('2CF04A40-C498-406F-964E-36C0B17EC765')) # No stock
 
         tmpList['EndQty'] = tmpList['EndQty'] + tmpList['OutQty']
         tmpList['StartQty'] = tmpList['EndQty'] - tmpList['InQty'] #tmpList.apply(lambda l: max(getNumber(l.get('EndQty')) - getNumber(l.get('Qty')), 0), axis=1)
@@ -171,18 +171,13 @@ class TransData(erp):
         except Exception as e:
             raise e
 
-    @classmethod
-    def CheckOrderLine(cls, data):
+    def CheckOrderLine(self, data):
         orderLineGuids = [l.get('orderLineGUID') for l in data if l.get('orderLineGUID', '') != '']
         if not orderLineGuids:
-            Error(LangMast.getText('4EF57331-1C22-43DC-8878-81617171E034')) # Shortage of some info of order lines!
+            Error(lang('4EF57331-1C22-43DC-8878-81617171E034')) # Shortage of some info of order lines!
 
-        tmp = cls.query.filter(cls.OrderLineGuid.in_(orderLineGuids)) \
-            .with_entities(func.count(distinct(cls.OrderLineGuid)).label('GuidCount'),  # 全部save
-                           func.count(cls.Id).label('TotalCount')).first()  # 重复save
+        tmp = self.GetOrderLine(orderLineGuids,data[0].get('transDate'))
         if not tmp or tmp.GuidCount < len(orderLineGuids):
-            Error(LangMast.getText('B03FCA74-D2B4-4504-842E-3A7FD649432F')) # Can't save order lines!
+            Error(lang('B03FCA74-D2B4-4504-842E-3A7FD649432F')) # Can't save order lines!
         if tmp.GuidCount < tmp.TotalCount:
-            Error(LangMast.getText('9D310041-7713-4C59-B1C0-BF4639B39552')) # Can't save because already saved this order!
-
-        return orderLineGuids
+            Error(lang('9D310041-7713-4C59-B1C0-BF4639B39552')) # Can't save because already saved this order!

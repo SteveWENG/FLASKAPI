@@ -26,3 +26,6 @@ class LangMast(erp):
             return guid
 
         return li[0].TextZH if g.get('LangCode','') == 'ZH' else li[0].TextEN
+
+def lang(guid):
+    return LangMast.getText(guid)

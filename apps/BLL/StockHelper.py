@@ -5,6 +5,8 @@ import pandas as pd
 
 from ..entity.EXACT.gbkmut import gbkmut
 from ..entity.erp.Stock import TransData
+from ..entity.erp.Stock.POStockin import POStockin
+from ..entity.erp.Stock.Stockout import Stockout
 from ..entity.erp.common.Apps import Apps
 from ..entity.erp.common.CCMast import CCMast
 from ..utils.functions import *
@@ -14,7 +16,7 @@ from ..utils.functions import *
 class StockHelper:
 
     @staticmethod
-    def save( data):
+    def save(data):
         try:
             appGuid = data.get('appGuid','')
             if appGuid == '':
@@ -25,7 +27,10 @@ class StockHelper:
                 Error('unknow app')
 
             mod = importlib.import_module('.%s' %clz, package='apps.entity.erp.Stock')
-            fun = getattr(getattr(mod, clz), 'save')
+
+            # 反射类
+            # fun = getattr(getattr(mod, clz), 'save')
+            fun = getattr(getattr(mod, clz)(), 'save')
             return fun(data)
         except Exception as e:
             raise e

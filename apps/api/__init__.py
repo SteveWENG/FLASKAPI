@@ -1,7 +1,7 @@
 from flask import g
 from flask_restful import request
 
-from ..utils.functions import ErrorExit,Err
+from ..utils.functions import *
 
 def webapi(func):
     try:

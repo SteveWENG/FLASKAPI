@@ -28,7 +28,8 @@ def getStr(obj):
 
 def getDate(s):
     try:
-        return datetime.datetime.strptime(s, '%Y-%m-%d')  # %H:%M:%S')
+        return datetime.date(*map(int, s.split('-')))
+        # return datetime.date.strptime(s, '%Y-%m-%d')  # %H:%M:%S')
     except Exception as e:
         raise e
 
