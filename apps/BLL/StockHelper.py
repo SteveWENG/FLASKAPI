@@ -5,8 +5,6 @@ import pandas as pd
 
 from ..entity.EXACT.gbkmut import gbkmut
 from ..entity.erp.Stock import TransData
-from ..entity.erp.Stock.POStockin import POStockin
-from ..entity.erp.Stock.Stockout import Stockout
 from ..entity.erp.common.Apps import Apps
 from ..entity.erp.common.CCMast import CCMast
 from ..utils.functions import *
@@ -17,6 +15,20 @@ class StockHelper:
 
     @staticmethod
     def save(data):
+        try:
+            return StockHelper._run('save',data)
+        except Exception as e:
+            raise e
+
+    @staticmethod
+    def items(data):
+        try:
+            StockHelper._run('items',data)
+        except Exception as e:
+            raise e
+
+    @staticmethod
+    def _run(FuncName, data):
         try:
             appGuid = data.get('appGuid','')
             if appGuid == '':
@@ -30,7 +42,7 @@ class StockHelper:
 
             # 反射类
             # fun = getattr(getattr(mod, clz), 'save')
-            fun = getattr(getattr(mod, clz)(), 'save')
+            fun = getattr(getattr(mod, clz)(), FuncName)
             return fun(data)
         except Exception as e:
             raise e

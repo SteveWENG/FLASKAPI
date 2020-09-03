@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 from functools import reduce
 
-from pandas import DataFrame
 from sqlalchemy import func, select, and_, or_, case, distinct
 import pandas as pd
 
+from ....entity import dblog
 from ....utils.functions import *
 from ...erp import erp, db
 from ..common.LangMast import lang
@@ -47,6 +47,7 @@ class TransData(erp):
         return {'costCenterCode': data.get('costCenterCode', ''), 'createUser': data.get('creater', ''),
                 'transDate': data.get('date', ''), 'transGuid': getGUID(), 'BusinessType': cls.type}
 
+    @dblog
     def save(self, data):
         try:
             if not data.get('data'):

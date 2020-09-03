@@ -36,11 +36,13 @@ class BaseModel(db.Model):
     def show(self):
         return '<tr>%s</tr>' %(''.join (list('<td>%s : %s</td>' %(key,val) for key,val in vars(self).items() if key.find('_',0)<0)))
 
+    '''
     def __repr__(self):
         state = inspect(self)
         attrs = " ".join([f"{attr.key}={attr.loaded_value!r}"
                           for attr in state.attrs])
         return f"<User {attrs}>"
+    '''
 
     def to_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
@@ -95,52 +97,60 @@ class BaseModel(db.Model):
         except Exception as e:
             raise e
 
-class DataLogger(BaseModel):
+class DataLogs(BaseModel):
     __bind_key__ = 'salesorder'
-    __tablename__ = 'tblDataLogger'
+    __tablename__ = 'tblDataLogs'
 
+    ClassName = db.Column()
     FuncName = db.Column()
-    DBName = db.Column()
+    Site = db.Column()
     TableName = db.Column()
-    Values = db.Column()
+    Data = db.Column()
     Errors = db.Column()
     CreatedUser = db.Column()
 
-def log(func):
+def dblog(func):
     @functools.wraps(func)
     def wrapper(*args, **kw):
-        errmsg = ''
+        dic = {}
         try:
             return func(*args, **kw)
         except Exception as e:
-            errmsg = str(e)
+            dic['Errors'] = str(e)
             raise e
         finally:
-            dic = {}
-            dic['FuncName'] = func.__name__
+
+            dic['FuncName'] = func.__qualname__
 
             vals = []
             if len(args) > 0 :
+                # [str(v) for v in args if  "<class '%s" % func.__module__ in str(type(v))]
+                clzs = [v for v in args if  "<class '%s" % func.__module__ in str(type(v))]
+                if clzs:
+                    dic['ClassName'] = str(clzs[0])[1:str(clzs[0]).index(' (transient ')]
+                    dic['TableName'] = str(clzs[0].__table__)
+
                 #去除参数中的self值
-                vals.append(str([v for v in args if  "<class '%s" % func.__module__ not in str(v)]))
+                vals = vals + [v for v in args if  "<class '%s" % func.__module__ not in str(type(v))]
 
             if len(kw) > 0:
-                dic.update({k[3:]:v for k, v in kw.items() if k[3:] in ['CreatedUser', 'DBName', 'TableName']})
+                vals = vals + [kw]
 
-                vals.append(str({k:v for k, v in kw.items() if k[3:] not in ['CreatedUser', 'DBName', 'TableName']}))
+            for l in vals:
+                if isinstance(l, dict) and (l.get('creater','') != '' or l.get('costCenterCode','') != ''):
+                    dic['CreatedUser'] = l.get('creater')
+                    dic['Site'] = l.get('costCenterCode')
+                    break
+            if vals and len(vals) == 1:
+                vals = vals[0]
 
-            if errmsg != '':
-                dic['Errors'] = errmsg
+            dic['Data'] = str(vals)
 
-            if len(vals) == 0 and errmsg == '':
-                return
-
-            dic['Values'] = '\n'.join(vals)
             try:
-                ##with DataLogger.adds([dic]) as session:
+                with DataLogs.adds([dic]) as _:
                     pass
             except Exception as e:
-                pass
+                raise e
     return wrapper
 
 @contextmanager

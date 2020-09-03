@@ -7,6 +7,10 @@ from ..api import webapi
 
 bp = Blueprint('stock', __name__, url_prefix='/stock')
 
+@bp.route('/items', methods=['POST'])
+def items():
+    return webapi(lambda dic: StockHelper.items(dic))
+
 @bp.route('/save', methods=['POST'])
 def save():
     return webapi(lambda dic: StockHelper.save(dic))
