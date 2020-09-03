@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
+from functools import reduce
 
-
+from pandas import DataFrame
 from sqlalchemy import func, select, and_, or_, case, distinct
 import pandas as pd
 
@@ -16,6 +17,7 @@ class TransData(erp):
     OrderLineGuid = db.Column()
     ItemCode = db.Column()
     ItemName = db.Column()
+    Guid = db.Column()
     IsServiceItem = db.Column(db.Boolean)
     UOM = db.Column()
     TransDate = db.Column(db.Date)
@@ -53,15 +55,11 @@ class TransData(erp):
             dic = self.SummaryInfo(data)
             if data.get('supplierCode','') != '':
                 dic['supplierCode'] = data.get('supplierCode')
-            if data.get('orderGuid','') != '':
-                dic['orderGuid'] = data.get('orderGuid')
+            if data.get('headGuid','') != '':
+                dic['headGuid'] = data.get('headGuid')
 
-            self._MAXTRANSID = None
-            self._StockItems = None
-
-            tmpStockItems = self.StockItemTrans(data.get('data'))
-            self._StockItems = set([l.get('itemCode') for l in tmpStockItems])
-            li = self.SaveData(tmpStockItems,self.ServiceItemTrans(data.get('data')), **dic)
+            itemcodes = set([l.get('itemCode') for l in data.get('data')])
+            li = self.SaveData(data.get('data'), **dic, itemCodes=itemcodes)
 
             if not li:
                 Error(lang('0CD4331A-BCD2-468A-A18A-EE4EDA2FF0EE')) # No data to save
@@ -69,18 +67,18 @@ class TransData(erp):
             li = [dict({k:v for k,v in l.items() if getStr(v) != ''}, **dic) for l in li]
 
             with self.adds(li) as session:
+                '''
                 # 插入的记录数，和插入记录的min(Id)
                 news = session.query(func.count(TransData.Id), func.min(TransData.Id)) \
                     .filter(TransData.TransGuid == dic.get('transGuid')).first()
                 if not news or news[0] != len(li):
                     Error(lang('B03FCA74-D2B4-4504-842E-3A7FD649432F')) # Faild to save data
-
-                if not self._MAXTRANSID :
-                    self._MAXTRANSID = news[1]
+                '''
+                pass
                 if hasattr(self, 'save_check'):
-                   return self.save_check(li)
+                   return self.save_check(li,itemCodes=itemcodes)
 
-                return lang('F7083ED1-26B3-4BD2-82FD-976C401D4CC0') # Successfully saved stock transactions
+            return lang('F7083ED1-26B3-4BD2-82FD-976C401D4CC0') # Successfully saved stock transactions
         except Exception as e:
             raise e
 
@@ -96,6 +94,35 @@ class TransData(erp):
         except Exception as e:
             raise e
 
+    #Batch cost
+    @classmethod
+    def ItemBatchCost(cls,costCenterCode, date=datetime.date.today(), itemcodes=None):
+        if itemcodes == None: # None 无；[] 全部
+            Error(lang('0CD4331A-BCD2-468A-A18A-EE4EDA2FF0EE')) # No data
+
+        filters = [cls.CostCenterCode==costCenterCode, func.abs(func.round(func.coalesce(cls.Qty,0),6))>1/1000000]
+        if len(itemcodes) > 0:
+            filters.append(cls.ItemCode.in_(itemcodes))
+        filters.append(or_(cls.TransDate<=date, func.round(func.coalesce(cls.Qty,0),6)<-1/1000000))
+
+        try:
+            qry = cls.query.filter(*filters)\
+                .with_entities(cls.ItemCode,cls.Guid,func.min(cls.Id).label('Id'),
+                               func.round(func.sum(func.coalesce(cls.Qty,0)),6).label('Qty'),
+                               func.min(case([(func.coalesce(cls.Qty, 0) > 0, cls.TransDate)],
+                                             else_=None)).label('TransDate'),
+                               func.max(case([(func.coalesce(cls.Qty, 0) > 0, cls.ItemCost)],
+                                             else_=0)).label('ItemCost'))\
+                .group_by(cls.ItemCode,cls.Guid)\
+                .having(func.round(func.sum(func.coalesce(cls.Qty,0)),6) >1/1000000)
+
+            tmp = pd.read_sql(qry.statement, cls.getBind())
+            tmp = tmp.sort_values(axis=0,by=['ItemCode','TransDate','Id'])
+            tmp['EndQty'] = tmp.groupby('ItemCode')['Qty'].cumsum()
+            return tmp
+        except Exception as e:
+            raise e
+
     #库存查询
     @classmethod
     def FIFO(cls, costCenterCode, date=datetime.date.today(), itemcodes=None):
@@ -107,14 +134,12 @@ class TransData(erp):
             filters.append(cls.ItemCode.in_(itemcodes))
 
         tmpsql = cls.query.filter(*filters, func.abs(func.round(func.coalesce(cls.Qty,0),6))>1/1000000)\
-            .with_entities(cls.ItemCode,cls.TransDate.label('INDATE'),cls.ItemCost,
+            .with_entities(cls.Guid,cls.ItemCode,cls.TransDate.label('INDATE'),cls.ItemCost,
                            func.round(cls.Qty,6).label('InQty'),
                            func.max(cls.Id).over().label('MAXID'),
-                           # func.max(case([(cls.Qty > 0, cls.Id)], else_=0)).over().label('MAXINID'),
-                           # func.max(case([(cls.Qty < 0, cls.Id)], else_=0)).over().label('MAXOUTID'),
                            func.sum(case([(cls.Qty>0, cls.Qty)],else_=0))
                            .over(partition_by=cls.ItemCode,order_by=[cls.TransDate, cls.Id]).label('EndQty'),
-                           func.sum(case([(cls.Qty<0, cls.Qty)],else_=-1))
+                           func.sum(case([(cls.Qty<0, cls.Qty)],else_=0))
                            .over(partition_by=cls.ItemCode).label('OutQty')).subquery()
         tmpsql = select([tmpsql]).where(and_(tmpsql.c.InQty>0,func.round(tmpsql.c.EndQty+tmpsql.c.OutQty,6)>0))\
             .select_from(tmpsql)
@@ -140,7 +165,19 @@ class TransData(erp):
         if len(li) == len(li.groupby(matchedFields)):
             return li
 
-        qtyField = ''.join([s for s in li if s.lower()=='qty'])
+        qtyField = ''.join([s for s in li if s.lower() == 'qty'])
+
+        li = [[]] + li.to_dict('records')
+        def check(f,s):
+            if len(f) == 0 or ''.join([str for str in matchedFields if f[len(f)-1].get(str) != s.get(str)]) != '':
+                return f + [s]
+
+            f[len(f)-1][qtyField] = f[len(f)-1].get(qtyField) + s.get(qtyField)
+            return f
+
+        return reduce(check, li)
+
+        ''' 8-28 下班
         li = li.reset_index(drop=True)
         for x in range(len(li)-1, 0, -1):
             # 相同ItemCode/ItemCost
@@ -149,6 +186,7 @@ class TransData(erp):
                 li.loc[x,qtyField] = 0
 
         return li[li[qtyField] != 0].reset_index(drop=True) #.to_dict('records')
+        '''
 
     @classmethod
     def UpdateOpenningStock(cls, li):
@@ -162,7 +200,7 @@ class TransData(erp):
             now = datetime.date.today()
             li['TransDate'] = datetime.date(now.year,now.month,1) + datetime.timedelta(days=-1)
 
-            li = cls.ZipStockList(li).to_dict('records')
+            li = cls.ZipStockList(li) #.to_dict('records')
             with cls.adds(li) as _:
                 pass
             # li.to_sql('TransData', db.get_engine(db.get_app(),cls.__bind_key__), if_exists='replace')
@@ -176,7 +214,14 @@ class TransData(erp):
         if not orderLineGuids:
             Error(lang('4EF57331-1C22-43DC-8878-81617171E034')) # Shortage of some info of order lines!
 
-        tmp = self.GetOrderLine(orderLineGuids,data[0].get('transDate'))
+        clz = type(self)
+        filter = [clz.OrderLineGuid.in_(orderLineGuids)]
+        if self.type == 'DailyTicket':  # 一天一个
+            filter.append(clz.TransDate == data[0].get('transDate'))
+        tmp = clz.query.filter(*filter) \
+            .with_entities(func.count(distinct(clz.OrderLineGuid)).label('GuidCount'),  # 全部save
+                           func.count(clz.Id).label('TotalCount')).first()  # 重复save
+
         if not tmp or tmp.GuidCount < len(orderLineGuids):
             Error(lang('B03FCA74-D2B4-4504-842E-3A7FD649432F')) # Can't save order lines!
         if tmp.GuidCount < tmp.TotalCount:

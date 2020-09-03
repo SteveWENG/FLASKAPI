@@ -25,7 +25,7 @@ class WechatHelper:
             Error('No paramenters of RedirectUrl')
 
         url = 'https://open.weixin.qq.com/connect/oauth2/authorize?'
-        url += 'appid={0}&redirect_uri={1}&response_type=code&scope=snsapi_base&state=STATE#wechat_redirect'
+        url += 'appid={0}&redirect_uri={1}&response_type=code&scope=snsapi_userinfo&state=STATE#wechat_redirect'
         url = url.format(self._wechatConfig.AppId, RedirectUrl)
         return url
 

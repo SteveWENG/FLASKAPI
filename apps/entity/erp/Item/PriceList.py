@@ -14,7 +14,7 @@ class PriceList(BI_DM):
     SupplierName = db.Column('Supplier_Name')
     PurUnit = db.Column('Pur_Unit')
     StockUnit = db.Column('Stock_Unit')
-    PurStkConversion = db.Column('PurStk_Conversion', db.Numeric)
+    PurStk_Conversion = db.Column(db.Numeric)
     ValidFrom = db.Column(db.Date)
     ValidTo = db.Column(db.Date)
 

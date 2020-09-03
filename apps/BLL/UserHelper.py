@@ -36,35 +36,26 @@ class UserHelper:
             li['Type'] = li['Type'].map(lambda x: getStr(x).lower())
             li['Code'] = li['Code'].map(lambda x: getStr(x))
 
-            # 如有company的code为空，= 全部，则删除有具体值的company
+            # 如有code为空，则是全部Company/Site
             types = li.loc[li['Code']=='','Type'].tolist()
-            companysforcostcenter = None
-            #全部company/costcenter
+            dic = {}
+            dic['company'] = [] if 'company' in types else None
+            dic['costcenter'] = [] if 'costcener' in types else None
+
             if len(types) > 0:
                 li = li[~li['Type'].isin(types)]
-                #全部costcenter, 因为是全部company/costcenter
-                companysforcostcenter = []
 
-            companys = li.loc[li['Type']=='company','Code'].tolist()
-            costcenters = []
+            # 不是全部company或site
+            keys = [k for k,v in dic.items() if v==None]
+            for s in keys:
+                tmp = set(li.loc[li['Type'] == s, 'Code'].tolist())
+                if tmp and not dic[s]:
+                    dic[s] = tmp
 
             if dataType == '' or dataType == 'costcenter':
-                costcenters = li.loc[li['Type'] == 'costcenter', 'Code'].tolist()
-
-                if companysforcostcenter == None and companys:
-                    companysforcostcenter = companys
-
-                costcenters = CCMast.show(companysforcostcenter, costcenters)
-
-            #全部company
+                dic['costcenter'] = CCMast.ShowSites(dic.get('company'),dic.get('costcenter'))
             if (dataType == '' or dataType == 'company') and 'company' in types:
-                companys = Company.show()
-
-            dic = {}
-            if len(companys)>0:
-                dic['company'] = companys
-            if len(costcenters)>0:
-                dic['costcenter'] = costcenters
+                dic['company'] = CCMast.ShowDB()
 
             return dic
         except Exception as e:

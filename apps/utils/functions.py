@@ -1,13 +1,17 @@
 import datetime
 import uuid
 from decimal import Decimal
+import random
 
 from flask import abort, jsonify
 
 
 def getGUID():
-    return str(uuid.uuid1()).replace('-', '')
+    s4 = str(uuid.uuid4()).replace('-', '')
+    s = s4[random.randint(0,31):][0:12]
+    s += s4[0:(12 - len(s))]
 
+    return str(uuid.uuid1()).replace('-', '')[0:20] + s
 
 def getdict(obj):
     pr = {}
