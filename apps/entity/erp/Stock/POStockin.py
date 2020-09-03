@@ -12,9 +12,9 @@ from ..common.LangMast import lang
 class POStockin(Stockin):
     type = 'POReceipt'
 
-    def SaveData(self, *trans, **kwargs):
+    def SaveData(self, trans, **kwargs):
         # Purchase UOM => Stock UOM
-        stockin = pd.DataFrame(trans[0])
+        stockin = pd.DataFrame(trans)
         stockin.loc[stockin['purStk_Conversion'] != 0, 'qty'] = stockin['purQty'] * stockin['purStk_Conversion']
         stockin.loc[stockin['purStk_Conversion'] != 0, 'itemCost'] = stockin['purPrice'] / stockin['purStk_Conversion']
         stockin = stockin.drop(['purQty', 'purPrice', 'purStk_Conversion'], axis=1)
