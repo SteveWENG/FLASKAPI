@@ -56,28 +56,25 @@ class TransData(erp):
             dic = self.SummaryInfo(data)
             if data.get('supplierCode','') != '':
                 dic['supplierCode'] = data.get('supplierCode')
-            if data.get('headGuid','') != '':
-                dic['headGuid'] = data.get('headGuid')
 
             itemcodes = set([l.get('itemCode') for l in data.get('data')])
-            li = self.SaveData(data.get('data'), **dic, itemCodes=itemcodes)
 
-            if not li:
+            tmpd = pd.DataFrame(data.get('data'))
+            #qty, purQty合并
+            fqtys = ['qty','purqty']
+            fgroup = [s for s in tmpd if s.lower() not in fqtys]
+            tmpd = tmpd.groupby(by=fgroup, as_index=False).agg({s: 'sum' for s in tmpd if s.lower() in fqtys})
+            li = self.SaveData(tmpd, **dic, itemCodes=itemcodes)
+
+            if li.empty:
                 Error(lang('0CD4331A-BCD2-468A-A18A-EE4EDA2FF0EE')) # No data to save
 
-            li = [dict({k:v for k,v in l.items() if getStr(v) != ''}, **dic) for l in li]
+            li = [dict({k:v for k,v in l.items() if getStr(v) != ''}, **dic) for l in li.to_dict('records')]
 
-            with self.adds(li) as session:
-                '''
-                # 插入的记录数，和插入记录的min(Id)
-                news = session.query(func.count(TransData.Id), func.min(TransData.Id)) \
-                    .filter(TransData.TransGuid == dic.get('transGuid')).first()
-                if not news or news[0] != len(li):
-                    Error(lang('B03FCA74-D2B4-4504-842E-3A7FD649432F')) # Faild to save data
-                '''
-                pass
-                if hasattr(self, 'save_check'):
-                   return self.save_check(li,itemCodes=itemcodes)
+            with self.adds([l for l in li if abs(round(l.get('qty',0),6)) > 0]) as session:
+                if not hasattr(self, 'save_check'):
+                    pass
+                return self.save_check(li,itemCodes=itemcodes)
 
             return lang('F7083ED1-26B3-4BD2-82FD-976C401D4CC0') # Successfully saved stock transactions
         except Exception as e:
@@ -211,19 +208,19 @@ class TransData(erp):
             raise e
 
     def CheckOrderLine(self, data):
-        orderLineGuids = [l.get('orderLineGUID') for l in data if l.get('orderLineGUID', '') != '']
+        orderLineGuids = [l.get('orderLineGUID') for l in data
+                          if l.get('orderLineGUID', '') != '' and abs(round(l.get('qty'),6))>0]
         if not orderLineGuids:
             Error(lang('4EF57331-1C22-43DC-8878-81617171E034')) # Shortage of some info of order lines!
 
         clz = type(self)
         filter = [clz.OrderLineGuid.in_(orderLineGuids)]
-        if self.type == 'DailyTicket':  # 一天一个
+
+        if str(type(self)).find('DailyTicket')  > 0:  # 收入一天一个
             filter.append(clz.TransDate == data[0].get('transDate'))
         tmp = clz.query.filter(*filter) \
             .with_entities(func.count(distinct(clz.OrderLineGuid)).label('GuidCount'),  # 全部save
                            func.count(clz.Id).label('TotalCount')).first()  # 重复save
 
-        if not tmp or tmp.GuidCount < len(orderLineGuids):
-            Error(lang('B03FCA74-D2B4-4504-842E-3A7FD649432F')) # Can't save order lines!
         if tmp.GuidCount < tmp.TotalCount:
             Error(lang('9D310041-7713-4C59-B1C0-BF4639B39552')) # Can't save because already saved this order!

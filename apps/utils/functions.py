@@ -2,6 +2,7 @@ import datetime
 import uuid
 from decimal import Decimal
 import random
+import math
 
 from flask import abort, jsonify
 
@@ -47,12 +48,18 @@ def getInt(o):
         raise e
 
 
-def getNumber(*d):
+def getNumber(d):
     # li = tuple([Decimal(str(x)) if getStr(x) != '' else 0 for x in d])
     # return li if len(li) > 1 else li[0]
-    if getStr(d) == '':
-        return 0
-    return Decimal(str(d))
+    def toDecimal(x):
+        if math.isnan(x) or not getStr(x):
+            return 0
+        return Decimal(str(x))
+    try:
+        len(d)
+        return [toDecimal(x) for x in d]
+    except:
+        return toDecimal(d)
 
 def Error(error):
     raise RuntimeError(error)

@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 
-import pandas as pd
 from pandas import merge
 from sqlalchemy import or_, and_, func
-from sqlalchemy.orm import aliased
 
 from ..common.LangMast import lang
 from ....utils.functions import *
@@ -13,19 +11,21 @@ class Stockout(TransData):
     type = 'Stockout'
 
     def SaveData(self, trans, **kw):
-        # 服务类产品
-        if not trans or trans[0].get('isServiceItem', False) == True:
+        '''
+        if not trans:
             return trans
+        '''
 
         itemcosts = self.ItemBatchCost(kw.get('costCenterCode'), kw.get('transDate'), kw.get('itemCodes'))
         if kw.get('itemCodes','') != '' and itemcosts.empty:
             Error(lang('2CF04A40-C498-406F-964E-36C0B17EC765')) # No stock
 
-        stockout = pd.DataFrame(trans)  # data.get('data'))
+        #stockout = pd.DataFrame(trans)  # data.get('data'))
 
-        li = merge(stockout, itemcosts, left_on='itemCode', right_on='ItemCode')
-        items = ','.join(list(set(itemcosts.groupby('ItemCode').groups.keys())
-                         .difference(set(li[li.EndQty >= li.qty].groupby('ItemCode').groups.keys()))))
+        li = merge(trans, itemcosts, how='left', left_on='itemCode', right_on='ItemCode')
+        items = ','.join(list(li[getNumber(li.EndQty) < li.qty].groupby('itemCode').groups.keys()))
+
+            # list(set(itemcosts.groupby('ItemCode').groups.keys()).difference(set(li[li.EndQty >= li.qty].groupby('ItemCode').groups.keys()))))
         if items != '':
             Error(lang('8145E10D-4F00-4FEC-A1A1-B7005DC5F1B1') % items) # Shortage of some stock
 
@@ -36,7 +36,7 @@ class Stockout(TransData):
         li = li.drop(['Id', 'ItemCode','TransDate','Qty', 'EndQty'], axis=1)
             # .rename(columns={'ItemCost': 'itemCost'})
 
-        return li.to_dict('records') #self.ZipStockList(li)
+        return li
 
     def save_check(self, data, **kw):  # Stock-item 出库
         try:

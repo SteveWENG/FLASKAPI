@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
-from sqlalchemy import distinct, func
+
+import pandas as pd
+
 
 from ..common.LangMast import lang
 from ....utils.functions import Error
@@ -7,6 +9,11 @@ from .Stockout import Stockout
 
 class DailyTicket(Stockout):
     type = 'DailyTicket'
+
+    def SaveData(self, trans, **kw):
+
+        trans['qty'] = -trans['qty']
+        return trans #tmp.to_dict('records')
 
     def save_check(self, data, **kw):
         self.CheckOrderLine(data)
