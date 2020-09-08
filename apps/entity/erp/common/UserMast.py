@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+from ldap3 import Server, Connection, ALL,NTLM
+
+from config import AD
 from ....utils.functions import *
 from ...erp import erp, db
 
@@ -15,10 +18,23 @@ class UserMast(erp):
 
     @classmethod
     def login(cls, userName, password):
-        tmp = cls.query.filter(cls.UserName==getStr(userName),
-                                cls.Password==getStr(password),
-                                cls.Status==True).first()
+        filter = [cls.UserName==getStr(userName),cls.Status==True]
+        if cls.adlogin(userName,password) == False:
+            filter.append(cls.Password==getStr(password))
+
+        tmp = cls.query.filter(*filter).first()
         if not tmp:
             Error('Error login')
 
         return tmp
+
+    @classmethod
+    def adlogin(cls, userName, password):
+        try:
+            server = Server(AD.server, get_info=ALL)
+            conn = Connection(server, user= '%s\\%s' % (AD.domain,userName), password=password,
+                              auto_bind=True,authentication='NTLM')
+            return True
+        except:
+            return False
+

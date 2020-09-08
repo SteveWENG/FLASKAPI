@@ -13,10 +13,15 @@ class POStockin(Stockin):
     type = 'POReceipt'
 
     def SaveData(self, trans, **kwargs):
+
         # Purchase UOM => Stock UOM
         # stockin = pd.DataFrame(trans)
-        trans.loc[trans['purStk_Conversion'] != 0, 'qty'] = trans['purQty'] * trans['purStk_Conversion']
-        trans.loc[trans['purStk_Conversion'] != 0, 'itemCost'] = trans['purPrice'] / trans['purStk_Conversion']
+
+        #if not trans[(trans['purQty']>0)&(trans['purStk_Conversion']==0)].empty:
+        #    Error(lang('3BD6363C-F4BD-46A8-A788-2CD6031E468E'))
+
+        trans.loc[trans['purQty']>0,'qty'] = trans['purQty'] * trans['purStk_Conversion']
+        trans.loc[trans['purQty']>0,'itemCost'] = trans['purPrice'] / trans['purStk_Conversion']
         trans = trans.drop(['purQty', 'purPrice', 'purStk_Conversion'], axis=1)
         # 每次入库唯一号码
         trans['guid'] = [getGUID() for x in range(len(trans))]

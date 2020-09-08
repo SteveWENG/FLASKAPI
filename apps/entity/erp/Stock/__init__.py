@@ -60,10 +60,13 @@ class TransData(erp):
             itemcodes = set([l.get('itemCode') for l in data.get('data')])
 
             tmpd = pd.DataFrame(data.get('data'))
+            for s in tmpd.columns[tmpd.isna().any()]:
+                tmpd[s].fillna(0 if s in tmpd.select_dtypes(include='number').columns else '',inplace=True)
+
             #qty, purQty合并
-            fqtys = ['qty','purqty']
-            fgroup = [s for s in tmpd if s.lower() not in fqtys]
-            tmpd = tmpd.groupby(by=fgroup, as_index=False).agg({s: 'sum' for s in tmpd if s.lower() in fqtys})
+            fqtys = {s:'sum' for s in tmpd if s.lower().startswith('qty')==True  or s.lower().endswith('qty')==True}
+            fgroup = [s for s in tmpd if s.lower().startswith('qty') !=True and  s.lower().endswith('qty') !=True]
+            tmpd = tmpd.groupby(by=fgroup, as_index=False).agg(fqtys)
             li = self.SaveData(tmpd, **dic, itemCodes=itemcodes)
 
             if li.empty:

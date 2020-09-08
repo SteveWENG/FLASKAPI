@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 
 from pandas import merge
+import pandas as pd
 from sqlalchemy import or_, and_, func
+
 
 from ..common.LangMast import lang
 from ....utils.functions import *
@@ -23,7 +25,9 @@ class Stockout(TransData):
         #stockout = pd.DataFrame(trans)  # data.get('data'))
 
         li = merge(trans, itemcosts, how='left', left_on='itemCode', right_on='ItemCode')
-        items = ','.join(list(li[getNumber(li.EndQty) < li.qty].groupby('itemCode').groups.keys()))
+        for s in ['EndQty','qty']:
+            li[s].fillna(0,inplace=True)
+        items = ','.join(list(li[li.EndQty < li.qty].groupby('itemCode').groups.keys()))
 
             # list(set(itemcosts.groupby('ItemCode').groups.keys()).difference(set(li[li.EndQty >= li.qty].groupby('ItemCode').groups.keys()))))
         if items != '':
