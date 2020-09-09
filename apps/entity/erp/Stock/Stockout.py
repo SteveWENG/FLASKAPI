@@ -37,7 +37,7 @@ class Stockout(TransData):
         li = li[(li.EndQty - li.Qty) < li.qty]
         li['qty'] = li.apply(lambda l: max(l['EndQty']-l['qty'],0)-l['Qty'], axis=1)
 
-        li = li.drop(['Id', 'ItemCode','TransDate','Qty', 'EndQty'], axis=1)
+        li.drop(['Id', 'ItemCode','TransDate','Qty', 'EndQty'], axis=1, inplace=True)
             # .rename(columns={'ItemCost': 'itemCost'})
 
         return li

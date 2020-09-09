@@ -3,7 +3,7 @@
 import pandas as pd
 from sqlalchemy import func, distinct
 
-from ..Order.OrderLine import OrderLine
+from ..Order.OrderLineF import OrderLineF
 from ....utils.functions import *
 from .Stockin import Stockin
 from ..common.LangMast import lang
@@ -22,7 +22,7 @@ class POStockin(Stockin):
 
         trans.loc[trans['purQty']>0,'qty'] = trans['purQty'] * trans['purStk_Conversion']
         trans.loc[trans['purQty']>0,'itemCost'] = trans['purPrice'] / trans['purStk_Conversion']
-        trans = trans.drop(['purQty', 'purPrice', 'purStk_Conversion'], axis=1)
+        trans.drop(['purQty', 'purPrice', 'purStk_Conversion'], axis=1, inplace=True)
         # 每次入库唯一号码
         trans['guid'] = [getGUID() for x in range(len(trans))]
         if kwargs.get('supplierCode','') != '':
@@ -40,8 +40,8 @@ class POStockin(Stockin):
             self.CheckOrderLine(data)
             guids = set([s.get('orderLineGUID') for s in data])
 
-            if OrderLine.query.filter(OrderLine.Guid.in_(guids), OrderLine.RemainQty != 0,
-                                      OrderLine.DeleteTime == None) \
+            if OrderLineF.query.filter(OrderLineF.Guid.in_(guids), OrderLineF.RemainQty != 0,
+                                      OrderLineF.Status.lower()=='created',OrderLineF.DeleteTime == None) \
                 .update({'RemainQty':0 },synchronize_session=False) < len(data) :
                 Error(lang('5B953DA5-DBD8-4301-88FB-AC94886060A7')) # This PO has been received
 

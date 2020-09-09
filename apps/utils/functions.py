@@ -49,10 +49,7 @@ def getInt(o):
 
 
 def getNumber(d):
-    # li = tuple([Decimal(str(x)) if getStr(x) != '' else 0 for x in d])
-    # return li if len(li) > 1 else li[0]
-
-    if math.isnan(d) or not getStr(d):
+    if not d or math.isnan(d):
         return 0
     return Decimal(str(d))
 

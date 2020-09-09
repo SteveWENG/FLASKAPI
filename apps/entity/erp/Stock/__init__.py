@@ -154,7 +154,7 @@ class TransData(erp):
         tmpList['StartQty'] = tmpList['EndQty'] - tmpList['InQty'] #tmpList.apply(lambda l: max(getNumber(l.get('EndQty')) - getNumber(l.get('Qty')), 0), axis=1)
         tmpList.loc[tmpList['StartQty']<0,'StartQty'] = 0
         tmpList.loc[tmpList['StartQty']==0, 'InQty'] = tmpList['EndQty']
-        tmpList = tmpList.drop(['OutQty'],axis=1)
+        tmpList.drop(['OutQty'],axis=1, inplace=True)
         return tmpList
 
     @classmethod
@@ -200,8 +200,8 @@ class TransData(erp):
 
             now = datetime.date.today()
             li['TransDate'] = datetime.date(now.year,now.month,1) + datetime.timedelta(days=-1)
-
-            li = cls.ZipStockList(li) #.to_dict('records')
+            li['Guid'] = [getGUID() for x in range(len(li))]
+            li = li.to_dict('records')
             with cls.adds(li) as _:
                 pass
             # li.to_sql('TransData', db.get_engine(db.get_app(),cls.__bind_key__), if_exists='replace')

@@ -56,7 +56,7 @@ class gbkmut(EXACT):
                     li = li.append(pd.read_sql(str(tmpsql.statement.compile(compile_kwargs={'literal_binds':True})), conn))
 
             li['ItemCost'] = li['Amt'] / li['Qty']
-            li = li.drop(['Amt'], axis=1)
+            li.drop(['Amt'], axis=1, inplace=True)
             return li
         except Exception as e:
             raise e

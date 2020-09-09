@@ -3,7 +3,7 @@ from contextlib import contextmanager
 import functools
 from sqlalchemy import inspect
 
-from ..utils.functions import getStr
+from ..utils.functions import *
 
 db = SQLAlchemy()
 
@@ -22,7 +22,7 @@ class BaseModel(db.Model):
 
         for k, v in d.items():
             tmpkey = ''.join([f for f in fields if f.lower() == k.lower()]) #不分大小写，找出对应的属性
-            if tmpkey == '' or getStr(v) == '':  #无值
+            if tmpkey == '' or getStr(v) == '' or (tmpkey.lower()=='id' and getNumber(v)==0):  #无值和 Id
                 continue
 
             setattr(self, tmpkey, self._wrap(v))
@@ -59,24 +59,6 @@ class BaseModel(db.Model):
             with SaveDB() as session:
                 session.add_all(tmp)
                 yield session
-        except Exception as e:
-            raise e
-
-    @classmethod
-    def merges(cls, data):
-        try:
-            tmplist = [data]
-            if isinstance(data, list):
-                tmplist = data
-            
-            #转换成对象。有效的Id，及其它字段; 
-            tmplist = [cls(l) for l in tmplist if l.get('Id',-1) > 0 and len(l.keys()) > 1]  
-
-            with SaveDB() as session:
-                for line in tmplist:
-                    session.merge(line)
-                    pass
-
         except Exception as e:
             raise e
 
@@ -165,3 +147,16 @@ def SaveDB(session = db.session):
     finally:
         session.close()
 
+def merges(data):
+    try:
+        tmplist = [data]
+        if isinstance(data, list):
+            tmplist = data
+
+        with SaveDB() as session:
+            for line in tmplist:
+                session.merge(line)
+            pass
+
+    except Exception as e:
+        raise e
