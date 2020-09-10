@@ -104,6 +104,9 @@ class DataLogs(BaseModel):
     CreatedUser = db.Column()
 
 def dblog(func):
+    if '__func__' in dir(func):
+        func = func.__func__
+
     @functools.wraps(func)
     def wrapper(*args, **kw):
         dic = {}
@@ -130,11 +133,22 @@ def dblog(func):
             if len(kw) > 0:
                 vals = vals + [kw]
 
+            fields = {'Site': 'costcenter', 'CreatedUser':['creater','createuser']}
             for l in vals:
-                if isinstance(l, dict) and (l.get('creater','') != '' or l.get('costCenterCode','') != ''):
-                    dic['CreatedUser'] = l.get('creater')
-                    dic['Site'] = l.get('costCenterCode')
-                    break
+                if not isinstance(l, dict):
+                    continue
+
+                for k,v in fields.items():
+                    sf = ''
+                    if isinstance(v,list):
+                        sf = ''.join([f for f in l.keys() if [s for s in v if s.lower()==f.lower()]])
+                    else:
+                        sf = ''.join([f for f in l.keys() if v.lower() in f.lower()])
+
+                    if sf:
+                        dic[k] = l.get(sf)
+
+                break
             if vals and len(vals) == 1:
                 vals = vals[0]
 

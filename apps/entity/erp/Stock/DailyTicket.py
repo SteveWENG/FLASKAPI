@@ -10,11 +10,13 @@ from .Stockout import Stockout
 class DailyTicket(Stockout):
     type = 'DailyTicket'
 
-    def SaveData(self, trans, **kw):
+    @classmethod
+    def SaveData(cls, trans, **kw):
 
         trans['qty'] = -trans['qty']
         return trans #tmp.to_dict('records')
 
-    def save_check(self, data, **kw):
-        self.CheckOrderLine(data)
+    @classmethod
+    def save_check(cls, data, **kw):
+        cls.CheckOrderLine(data)
         return lang('7B578615-3038-4691-BD5E-5093C62E36E4') # Successfully saved daily tickets

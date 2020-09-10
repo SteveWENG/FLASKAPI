@@ -12,7 +12,8 @@ from ..common.LangMast import lang
 class POStockin(Stockin):
     type = 'POReceipt'
 
-    def SaveData(self, trans, **kwargs):
+    @classmethod
+    def SaveData(cls, trans, **kwargs):
 
         # Purchase UOM => Stock UOM
         # stockin = pd.DataFrame(trans)
@@ -32,12 +33,13 @@ class POStockin(Stockin):
 
     #1 检查对应的PO是否已入库
     #2 更新POlines中的剩余数量=0
-    def save_check(self, data, **kw):
+    @classmethod
+    def save_check(cls, data, **kw):
         try:
             if not data or len(data) == 0:
                 Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF')) # No PO lines to save
 
-            self.CheckOrderLine(data)
+            cls.CheckOrderLine(data)
             guids = set([s.get('orderLineGUID') for s in data])
 
             if OrderLineF.query.filter(OrderLineF.Guid.in_(guids), OrderLineF.RemainQty != 0,

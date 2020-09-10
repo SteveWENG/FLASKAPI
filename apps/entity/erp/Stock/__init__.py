@@ -47,14 +47,14 @@ class TransData(erp):
         return {'costCenterCode': data.get('costCenterCode', ''), 'createUser': data.get('creater', ''),
                 'transDate': data.get('date', ''), 'transGuid': getGUID(), 'BusinessType': cls.type}
 
-
     @dblog
-    def save(self, data):
+    @classmethod
+    def save(cls, data):
         try:
             if not data.get('data'):
                 Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF')) # No data to save
 
-            dic = self.SummaryInfo(data)
+            dic = cls.SummaryInfo(data)
             if data.get('supplierCode','') != '':
                 dic['supplierCode'] = data.get('supplierCode')
 
@@ -68,26 +68,27 @@ class TransData(erp):
             fqtys = {s:'sum' for s in tmpd if s.lower().startswith('qty')==True  or s.lower().endswith('qty')==True}
             fgroup = [s for s in tmpd if s.lower().startswith('qty') !=True and  s.lower().endswith('qty') !=True]
             tmpd = tmpd.groupby(by=fgroup, as_index=False).agg(fqtys)
-            li = self.SaveData(tmpd, **dic, itemCodes=itemcodes)
+            li = cls.SaveData(tmpd, **dic, itemCodes=itemcodes)
 
             if li.empty:
                 Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF')) # No data to save
 
             li = [dict({k:v for k,v in l.items() if getStr(v) != ''}, **dic) for l in li.to_dict('records')]
 
-            with self.adds([l for l in li if abs(round(l.get('qty',0),6)) > 0]) as session:
-                if not hasattr(self, 'save_check'):
+            with cls.adds([l for l in li if abs(round(l.get('qty',0),6)) > 0]) as session:
+                if not hasattr(cls, 'save_check'):
                     pass
-                return self.save_check(li,itemCodes=itemcodes)
+                return cls.save_check(li,itemCodes=itemcodes)
 
             return lang('F7083ED1-26B3-4BD2-82FD-976C401D4CC0') # Successfully saved stock transactions
         except Exception as e:
             raise e
 
-    def PrepareSave(self, data):
+    @classmethod
+    def PrepareSave(cls, data):
         try:
             dic = {'costCenterCode': data.get('costCenterCode', ''), 'createUser': data.get('creater', ''),
-                   'transDate': data.get('date', ''), 'transGuid': getGUID(), 'BusinessType': self.type}
+                   'transDate': data.get('date', ''), 'transGuid': getGUID(), 'BusinessType': cls.type}
 
             itemcodes = [] #set([l.get('itemCode') for l in stockItems])
             if len(itemcodes) == 0:
@@ -212,20 +213,20 @@ class TransData(erp):
         except Exception as e:
             raise e
 
-    def CheckOrderLine(self, data):
+    @classmethod
+    def CheckOrderLine(cls, data):
         orderLineGuids = [l.get('orderLineGUID') for l in data
                           if l.get('orderLineGUID', '') != '' and abs(round(l.get('qty'),6))>0]
         if not orderLineGuids:
             Error(lang('4EF57331-1C22-43DC-8878-81617171E034')) # Shortage of some info of order lines!
 
-        clz = type(self)
-        filter = [clz.OrderLineGuid.in_(orderLineGuids)]
+        filter = [cls.OrderLineGuid.in_(orderLineGuids)]
 
-        if str(type(self)).find('DailyTicket')  > 0:  # 收入一天一个
-            filter.append(clz.TransDate == data[0].get('transDate'))
-        tmp = clz.query.filter(*filter) \
-            .with_entities(func.count(distinct(clz.OrderLineGuid)).label('GuidCount'),  # 全部save
-                           func.count(clz.Id).label('TotalCount')).first()  # 重复save
+        if str(cls).find('DailyTicket.DailyTicket')  > 0:  # 收入一天一个
+            filter.append(cls.TransDate == data[0].get('transDate'))
+        tmp = cls.query.filter(*filter) \
+            .with_entities(func.count(distinct(cls.OrderLineGuid)).label('GuidCount'),  # 全部save
+                           func.count(cls.Id).label('TotalCount')).first()  # 重复save
 
         if tmp.GuidCount < tmp.TotalCount:
             Error(lang('9D310041-7713-4C59-B1C0-BF4639B39552')) # Can't save because already saved this order!

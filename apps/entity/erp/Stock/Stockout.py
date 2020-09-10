@@ -1,24 +1,20 @@
 # -*- coding: utf-8 -*-
 
 from pandas import merge
-import pandas as pd
-from sqlalchemy import or_, and_, func
+from sqlalchemy import func
 
 
 from ..common.LangMast import lang
 from ....utils.functions import *
-from ..Stock import TransData,db
+from ..Stock import TransData
 
 class Stockout(TransData):
     type = 'Stockout'
 
-    def SaveData(self, trans, **kw):
-        '''
-        if not trans:
-            return trans
-        '''
+    @classmethod
+    def SaveData(cls, trans, **kw):
 
-        itemcosts = self.ItemBatchCost(kw.get('costCenterCode'), kw.get('transDate'), kw.get('itemCodes'))
+        itemcosts = cls.ItemBatchCost(kw.get('costCenterCode'), kw.get('transDate'), kw.get('itemCodes'))
         if kw.get('itemCodes','') != '' and itemcosts.empty:
             Error(lang('2CF04A40-C498-406F-964E-36C0B17EC765')) # No stock
 
@@ -42,13 +38,14 @@ class Stockout(TransData):
 
         return li
 
-    def save_check(self, data, **kw):  # Stock-item 出库
+    @classmethod
+    def save_check(cls, data, **kw):  # Stock-item 出库
         try:
-            clz = type(self)
+
             # 按批号合并，检查库存有效
             guids = set([l.get('Guid') for l in data])
-            tmp = clz.query.filter(func.coalesce(clz.Guid,'').in_(guids)).with_entities(clz.ItemCode)\
-                .group_by(clz.ItemCode).having(func.round(func.sum(func.coalesce(clz.Qty,0)),6) < -1/1000000).all()
+            tmp = cls.query.filter(func.coalesce(cls.Guid,'').in_(guids)).with_entities(cls.ItemCode)\
+                .group_by(cls.ItemCode).having(func.round(func.sum(func.coalesce(cls.Qty,0)),6) < -1/1000000).all()
             if not tmp:
                 return lang('130E74A9-0A1B-4000-A82D-96A1CB13BD68') # Sucessfully saved stockout
 

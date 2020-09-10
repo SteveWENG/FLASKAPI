@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-from sqlalchemy import and_, or_, func
-import pandas as pd
+from sqlalchemy import  func
 from sqlalchemy.orm import aliased
 
 from ..common.LangMast import lang
@@ -10,15 +9,15 @@ from ..Stock import TransData
 class Stockin(TransData):
     type = 'Stockin'
 
-    def save_check(self, data, **kw):
+    @classmethod
+    def save_check(cls, data, **kw):
         try:
-            clz = type(self)
-            clzout = aliased(clz)
-            tmp = clz.query.join(clzout,clz.Guid==clzout.Guid)\
+            clzout = aliased(cls)
+            tmp = cls.query.join(clzout,cls.Guid==clzout.Guid)\
                 .filter(TransData.CostCenterCode==data[0].get('costCenterCode'),
                         TransData.ItemCode.in_(kw.get('itemCodes')),
-                        clz.TransDate>getDate(data[0].get('transDate')),
-                        func.round(func.coalesce(clz.Qty,0),6) > 1/1000000,                # 入库
+                        cls.TransDate>getDate(data[0].get('transDate')),
+                        func.round(func.coalesce(cls.Qty,0),6) > 1/1000000,                # 入库
                         func.round(func.coalesce(clzout.Qty,0),6) < -1/1000000).first()    # 出库
             if tmp != None:
                 # Can't save PO receipt, because of some stockin after ? has been consumed"
