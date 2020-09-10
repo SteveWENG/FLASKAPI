@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import math
 
 import pandas as pd
 
@@ -26,9 +25,10 @@ class OrderHead(erp):
                             lazy='joined')
 
     @dblog
-    def save(self,lines):
+    def save(self,data):
         try:
-            dflines = pd.DataFrame(lines)
+
+            dflines = pd.DataFrame(data.get('orderLines'))
 
             # 新增
             if getNumber(self.Id) < 1:

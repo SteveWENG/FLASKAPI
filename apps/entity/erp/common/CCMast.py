@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from sqlalchemy import or_
 
+from .LangMast import lang
 from ....utils.functions import *
 from ...erp import erp, db
 
@@ -11,7 +12,17 @@ class CCMast(erp):
     SiteGuid = db.Column()
     Company = db.Column()
     DBName = db.Column()
+    # Division = db.Column('DBName')
     Status = db.Column(db.Boolean)
+
+    @classmethod
+    def GetDivision(cls,costCenterCode):
+        qry = cls.query.filter(cls.CostCenterCode==costCenterCode).with_entities(cls.DBName).first()
+        if not qry:
+            Error(lang('08FED174-9DF0-4F27-B5AE-B495295179B8') % costCenterCode)
+
+        return qry[0]
+
 
     @classmethod
     def ShowDB(cls):
@@ -34,4 +45,3 @@ class CCMast(erp):
 
         tmp = cls.query.filter(*filter).with_entities(cls.CostCenterCode, cls.SiteGuid).distinct().all()
         return [{k: getStr(getattr(l,k)) for k in l.keys()} for l in tmp]
-

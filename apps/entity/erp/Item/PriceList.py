@@ -18,9 +18,11 @@ class PriceList(BI_DM):
     ValidFrom = db.Column(db.Date)
     ValidTo = db.Column(db.Date)
 
+    '''
     __mapper_args__ = {
         'primary_key': {Company, ItemCode, SupplierCode, PurUnit, ValidFrom, ValidTo}
     }
+    '''
 
     @classmethod
     def list(cls, company, itemCodes, *supplierCodes):

@@ -3,8 +3,6 @@ from sqlalchemy import func, select, case, and_
 import pymssql
 import pandas as pd
 
-from .Item import Item as ExactItem
-from .ItemAssortment import ItemAssortment
 from .grtbk import grtbk
 from ..EXACT import db, EXACT
 from .magaz import magaz
@@ -36,14 +34,10 @@ class gbkmut(EXACT):
                     continue
 
                 tmpsql = cls.query.join(grtbk, cls.COACode == grtbk.COACode) \
-                    .join(ExactItem, cls.ItemCode == ExactItem.Code) \
-                    .join(ItemAssortment, ExactItem.Assortment == ItemAssortment.Assortment) \
                     .join(magaz, gbkmut.Warehouse == magaz.Code) \
                     .filter(magaz.Name.in_(sites),
-                            cls.COACode == func.coalesce(ExactItem.GLAccountDistribution, ItemAssortment.GLStock),
-                            cls.ReminderCount <= 99, cls.TransType.in_(('N', 'C', 'P', 'X')),
-                            grtbk.omzrek.in_(('G', 'K', 'N')),
-                            func.coalesce(gbkmut.Qty, 0) > 1 / 1000000) \
+                            cls.TransType.in_(('N', 'C', 'P', 'X')),grtbk.omzrek=='G',
+                            func.abs(func.coalesce(gbkmut.Qty, 0)) > 1 / 1000000) \
                     .with_entities(magaz.Name.label('CostCenterCode'), cls.ItemCode.label('ItemCode'),
                                    func.round(func.sum(func.coalesce(cls.Qty,0)),6).label('Qty'),
                                    func.round(func.sum(func.coalesce(cls.Amt,0)),6).label('Amt'))\

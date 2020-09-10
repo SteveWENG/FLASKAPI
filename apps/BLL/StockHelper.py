@@ -23,7 +23,7 @@ class StockHelper:
     @staticmethod
     def items(data):
         try:
-            StockHelper._run('items',data)
+            return StockHelper._run('items',data)
         except Exception as e:
             raise e
 
@@ -50,7 +50,10 @@ class StockHelper:
     @staticmethod
     def UpdateOpenningStock(data):
         try:
-            codes = [getStr(s) for s in data.get('costCenterCodes').split(',')]
+            codes = [getStr(s) for s in data.get('costCenterCodes','').split(',') if getStr(s)]
+            divisions = [getStr(s) for s in data.get('divisions','').split(',') if getStr(s)]
+            if divisions:
+                codes = [l.get('CostCenterCode','') for l in CCMast.ShowSites(divisions,None)]
             tmpcodes = TransData.query.filter(TransData.CostCenterCode.in_(codes),
                                               TransData.BusinessType=='OpenningStock')\
                 .with_entities(TransData.CostCenterCode).distinct().all()

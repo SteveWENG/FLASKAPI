@@ -8,4 +8,4 @@ class OrderHelper:
 
     @staticmethod
     def save(data):
-        return OrderHead(data).save(data.get('orderLines'))
+        return OrderHead(data).save(data)

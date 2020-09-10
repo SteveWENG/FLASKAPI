@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from functools import reduce
 
+from functools import reduce
 from sqlalchemy import func, select, and_, or_, case, distinct
 import pandas as pd
 
@@ -47,11 +47,12 @@ class TransData(erp):
         return {'costCenterCode': data.get('costCenterCode', ''), 'createUser': data.get('creater', ''),
                 'transDate': data.get('date', ''), 'transGuid': getGUID(), 'BusinessType': cls.type}
 
+
     @dblog
     def save(self, data):
         try:
             if not data.get('data'):
-                Error(lang('0CD4331A-BCD2-468A-A18A-EE4EDA2FF0EE')) # No data to save
+                Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF')) # No data to save
 
             dic = self.SummaryInfo(data)
             if data.get('supplierCode','') != '':
@@ -70,7 +71,7 @@ class TransData(erp):
             li = self.SaveData(tmpd, **dic, itemCodes=itemcodes)
 
             if li.empty:
-                Error(lang('0CD4331A-BCD2-468A-A18A-EE4EDA2FF0EE')) # No data to save
+                Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF')) # No data to save
 
             li = [dict({k:v for k,v in l.items() if getStr(v) != ''}, **dic) for l in li.to_dict('records')]
 
@@ -97,11 +98,12 @@ class TransData(erp):
 
     #Batch cost
     @classmethod
-    def ItemBatchCost(cls,costCenterCode, date=datetime.date.today(), itemcodes=None):
+    def ItemBatchCost(cls,costCenterCode, date=datetime.date.today(), itemcodes=[]):
         if itemcodes == None: # None 无；[] 全部
-            Error(lang('0CD4331A-BCD2-468A-A18A-EE4EDA2FF0EE')) # No data
+            Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF')) # No data
 
-        filters = [cls.CostCenterCode==costCenterCode, func.abs(func.round(func.coalesce(cls.Qty,0),6))>1/1000000]
+        filters = [func.coalesce(cls.IsServiceItem,False)==False,cls.CostCenterCode==costCenterCode,
+                   func.abs(func.round(func.coalesce(cls.Qty,0),6))>1/1000000]
         if len(itemcodes) > 0:
             filters.append(cls.ItemCode.in_(itemcodes))
         filters.append(or_(cls.TransDate<=date, func.round(func.coalesce(cls.Qty,0),6)<-1/1000000))
@@ -128,7 +130,7 @@ class TransData(erp):
     @classmethod
     def FIFO(cls, costCenterCode, date=datetime.date.today(), itemcodes=None):
         if itemcodes == None: # None 无；[] 全部
-            Error(lang('0CD4331A-BCD2-468A-A18A-EE4EDA2FF0EE')) # No data
+            Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF')) # No data
 
         filters = [cls.CostCenterCode==costCenterCode, cls.TransDate<=date]
         if itemcodes != None and len(itemcodes) > 0:

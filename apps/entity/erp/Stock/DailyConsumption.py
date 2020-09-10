@@ -1,12 +1,37 @@
 # -*- coding: utf-8 -*-
+from sqlalchemy import func,distinct
+from pandas import merge
 
 from .Stockout import Stockout
 from ....utils.functions import Error
 from ..common.LangMast import lang
-from sqlalchemy import func,distinct
+from ..common.CCMast import CCMast
+from ..Item.ItemMast import ItemMast
 
 class DailyConsumption(Stockout):
     type = 'DailyConsumption'
+
+    @classmethod
+    def items(cls, data):
+        costCenterCode = data.get('costCenterCode', '')
+        date = data.get('date', '')
+        if not costCenterCode or not date:
+            Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
+        division = CCMast.GetDivision(costCenterCode)
+        try:
+            tmp = ItemMast.list(division)
+            tmp.drop('Id', axis=1, inplace=True)
+            tmp = merge(cls.ItemBatchCost(costCenterCode, date), tmp,
+                        how='left', left_on='ItemCode', right_on='ItemCode')
+            tmp.fillna('', inplace=True)
+            tmp.sort_values(by=['ItemCode', 'TransDate', 'Id'], inplace=True)
+            tmp['startQty'] = tmp['EndQty'] - tmp['Qty']
+            tmp.rename(columns={'ItemCode': 'itemCode', 'ItemName': 'itemName', 'Stock_Unit': 'uom',
+                                'Qty': 'stockQty', 'ItemCost': 'itemCost'}, inplace=True)
+            return tmp[['itemCode', 'itemName', 'uom', 'itemCost', 'startQty', 'stockQty']].to_dict('records')
+
+        except Exception as e:
+            raise e
 
     def save_check(self, data, **kw):
         # 只能一次消耗

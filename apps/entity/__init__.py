@@ -2,6 +2,7 @@ from flask_sqlalchemy import SQLAlchemy
 from contextlib import contextmanager
 import functools
 from sqlalchemy import inspect
+from sqlalchemy.orm import attributes, properties
 
 from ..utils.functions import *
 
@@ -24,6 +25,17 @@ class BaseModel(db.Model):
             tmpkey = ''.join([f for f in fields if f.lower() == k.lower()]) #不分大小写，找出对应的属性
             if tmpkey == '' or getStr(v) == '' or (tmpkey.lower()=='id' and getNumber(v)==0):  #无值和 Id
                 continue
+
+            #Date和Numeric，数据要转换
+            prop = getattr(type(self),tmpkey)
+            if isinstance(prop, attributes.InstrumentedAttribute):
+                prop = prop.prop
+                if isinstance(prop, properties.ColumnProperty):
+                    t = prop.columns[0].type
+                    if isinstance(t,db.Numeric):
+                        v = getNumber(v)
+                    elif isinstance(t,db.Date):
+                        v = getDate(v)
 
             setattr(self, tmpkey, self._wrap(v))
 

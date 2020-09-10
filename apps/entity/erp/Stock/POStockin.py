@@ -35,13 +35,13 @@ class POStockin(Stockin):
     def save_check(self, data, **kw):
         try:
             if not data or len(data) == 0:
-                Error(lang('0CD4331A-BCD2-468A-A18A-EE4EDA2FF0EE')) # No PO lines to save
+                Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF')) # No PO lines to save
 
             self.CheckOrderLine(data)
             guids = set([s.get('orderLineGUID') for s in data])
 
             if OrderLineF.query.filter(OrderLineF.Guid.in_(guids), OrderLineF.RemainQty != 0,
-                                      OrderLineF.Status.lower()=='created',OrderLineF.DeleteTime == None) \
+                                      func.lower(OrderLineF.Status)=='created',OrderLineF.DeleteTime == None) \
                 .update({'RemainQty':0 },synchronize_session=False) < len(data) :
                 Error(lang('5B953DA5-DBD8-4301-88FB-AC94886060A7')) # This PO has been received
 
