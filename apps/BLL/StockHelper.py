@@ -41,8 +41,8 @@ class StockHelper:
             mod = importlib.import_module('.%s' %clz, package='apps.entity.erp.Stock')
 
             # 反射类
-            # fun = getattr(getattr(mod, clz), 'save')
-            fun = getattr(getattr(mod, clz)(), FuncName)
+            fun = getattr(getattr(mod, clz), FuncName)
+            # fun = getattr(getattr(mod, clz)(), FuncName)
             return fun(data)
         except Exception as e:
             raise e
