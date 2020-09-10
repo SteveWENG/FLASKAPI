@@ -44,8 +44,8 @@ class StockHelper:
             fun = getattr(getattr(mod, clz), FuncName)
             # fun = getattr(getattr(mod, clz)(), FuncName)
             return fun(data)
-        except Exception as e:
-            raise e
+        except Exception as e1:
+            raise e1
 
     @staticmethod
     def UpdateOpenningStock(data):
