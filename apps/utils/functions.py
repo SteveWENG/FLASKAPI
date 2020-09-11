@@ -58,3 +58,12 @@ def Error(error):
 
 def ErrorExit(error):
     abort(jsonify({'status': 500, 'error': error}))
+
+def DataFrameSetNan(df):
+    if df.empty:
+        return df
+
+    for s in df.columns[df.isna().any()]:
+        df[s].fillna(0 if s in df.select_dtypes(include='number').columns else '', inplace=True)
+
+    return df

@@ -10,7 +10,6 @@ from ..entity.sfeed.SOHead import SOHead
 class SFEEDHelper:
     
     @classmethod
-    @dblog
     def GetLogonUser(cls, OpenId, **kw):
         if getStr(OpenId) == '':
             Error('No open id')

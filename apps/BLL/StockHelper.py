@@ -41,11 +41,12 @@ class StockHelper:
             mod = importlib.import_module('.%s' %clz, package='apps.entity.erp.Stock')
 
             # 反射类
-            fun = getattr(getattr(mod, clz), FuncName)
+            clz = getattr(mod,clz)
+            fun = getattr(clz, FuncName)
             # fun = getattr(getattr(mod, clz)(), FuncName)
             return fun(data)
-        except Exception as e1:
-            raise e1
+        except Exception as e:
+            raise e
 
     @staticmethod
     def UpdateOpenningStock(data):

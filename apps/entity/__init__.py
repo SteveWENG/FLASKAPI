@@ -104,8 +104,8 @@ class DataLogs(BaseModel):
     CreatedUser = db.Column()
 
 def dblog(func):
-    if '__func__' in dir(func):
-        func = func.__func__
+    while '__func__' in dir(func):
+      func = func.__func__
 
     @functools.wraps(func)
     def wrapper(*args, **kw):

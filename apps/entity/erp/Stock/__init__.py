@@ -47,8 +47,8 @@ class TransData(erp):
         return {'costCenterCode': data.get('costCenterCode', ''), 'createUser': data.get('creater', ''),
                 'transDate': data.get('date', ''), 'transGuid': getGUID(), 'BusinessType': cls.type}
 
-    @dblog
     @classmethod
+    @dblog
     def save(cls, data):
         try:
             if not data.get('data'):
@@ -61,9 +61,11 @@ class TransData(erp):
             itemcodes = set([l.get('itemCode') for l in data.get('data')])
 
             tmpd = pd.DataFrame(data.get('data'))
+            tmpd = DataFrameSetNan(tmpd)
+            '''
             for s in tmpd.columns[tmpd.isna().any()]:
                 tmpd[s].fillna(0 if s in tmpd.select_dtypes(include='number').columns else '',inplace=True)
-
+            '''
             #qty, purQty合并
             fqtys = {s:'sum' for s in tmpd if s.lower().startswith('qty')==True  or s.lower().endswith('qty')==True}
             fgroup = [s for s in tmpd if s.lower().startswith('qty') !=True and  s.lower().endswith('qty') !=True]
