@@ -25,7 +25,7 @@ class SalesOrderHead(erp):
                            SalesOrderItem.ItemCode.label('itemCode'),SalesOrderItem.ItemName.label('itemName'),
                            SalesOrderItem.Price.label('itemPrice')).all()
 
-        return [{**d,'uom':'PCS'} for d in getdict(qry)]
+        return getdict(qry)
 
 class SalesOrderItem(erp):
     __tablename__ = 'SalesOrderItem'

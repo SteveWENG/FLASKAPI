@@ -51,7 +51,7 @@ class POStockin(Stockin):
                 Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF')) # No PO lines to save
 
             cls.CheckOrderLine(data)
-            guids = set([s.get('orderLineGUID') for s in data])
+            guids = set([s.get('orderLineGuid') for s in data])
 
             if OrderLineF.query.filter(OrderLineF.Guid.in_(guids), OrderLineF.RemainQty != 0,
                                       func.lower(OrderLineF.Status)=='created',OrderLineF.DeleteTime == None) \

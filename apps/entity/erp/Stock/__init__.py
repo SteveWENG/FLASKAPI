@@ -217,8 +217,8 @@ class TransData(erp):
 
     @classmethod
     def CheckOrderLine(cls, data):
-        orderLineGuids = [l.get('orderLineGUID') for l in data
-                          if l.get('orderLineGUID', '') != '' and abs(round(l.get('qty'),6))>0]
+        orderLineGuids = [l.get('orderLineGuid') for l in data
+                          if l.get('orderLineGuid', '') != '' and abs(round(l.get('qty'),6))>0]
         if not orderLineGuids:
             Error(lang('4EF57331-1C22-43DC-8878-81617171E034') + '(OrderLineGuid)') # Shortage of some info of order lines!
 

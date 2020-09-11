@@ -15,7 +15,7 @@ class DailyTicket(Stockout):
         if not costCenterCode or not date:
             Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
 
-        return SalesOrderHead.list(costCenterCode,date)
+        return [{**d,'uom':'PCS', 'isServiceItem': True} for d in SalesOrderHead.list(costCenterCode,date)]
 
     @classmethod
     def SaveData(cls, trans, **kw):
@@ -25,5 +25,5 @@ class DailyTicket(Stockout):
 
     @classmethod
     def save_check(cls, data, **kw):
-        # cls.CheckOrderLine(data)
+        cls.CheckOrderLine(data)
         return lang('7B578615-3038-4691-BD5E-5093C62E36E4') # Successfully saved daily tickets
