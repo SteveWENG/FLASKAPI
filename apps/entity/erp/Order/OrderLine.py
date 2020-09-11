@@ -10,9 +10,11 @@ class OrderLine(erp):
     ItemCode = db.Column()
     ItemTax = db.Column(db.Numeric)
     PurchasePrice = db.Column('ItemPrice',db.Numeric)
-    purStk_Conversion = db.Column(db.Numeric)
-    purchaseUnit = db.Column('UOM')
+    PurStk_Conversion = db.Column(db.Numeric)
+    PurchaseUnit = db.Column('UOM')
     StockUnit = db.Column('Stock_Unit')
     Qty = db.Column(db.Numeric)
     AdjQty = db.Column(db.Numeric)
     RemainQty = db.Column(db.Numeric)
+    Remark = db.Column()
+

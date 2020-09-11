@@ -15,6 +15,9 @@ def getGUID():
     return str(uuid.uuid1()).replace('-', '')[0:20] + s
 
 def getdict(obj):
+    return [{k: getVal(getattr(l, k)) for k in l.keys() if getattr(l, k)} for l in obj]
+
+def getdict_del(obj):
     pr = {}
     for name in dir(obj):
         value = getattr(obj, name)
@@ -22,6 +25,7 @@ def getdict(obj):
             pr[name] = value
 
     return pr
+
 
 
 def getStr(obj):
@@ -52,6 +56,15 @@ def getNumber(d):
     if not d or math.isnan(d):
         return 0
     return Decimal(str(d))
+
+def getVal(s):
+    if isinstance(s,str):
+        return getStr(s)
+    if isinstance(s,Decimal):
+        return float(getNumber(s))
+    # if isinstance(s,datetime.date):
+    #     return getDate(s)
+    return s
 
 def Error(error):
     raise RuntimeError(error)

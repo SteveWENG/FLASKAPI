@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
 import pandas as pd
-from sqlalchemy import func, distinct
+from sqlalchemy import func
 
+from ..Order.OrderHead import OrderHead
 from ..Order.OrderLineF import OrderLineF
 from ....utils.functions import *
 from .Stockin import Stockin
@@ -11,6 +12,16 @@ from ..common.LangMast import lang
 
 class POStockin(Stockin):
     type = 'POReceipt'
+
+    @classmethod
+    def items(cls, data):
+        costCenterCode = data.get('costCenterCode', '')
+        date = data.get('date', '')
+        supplierCode = data.get('supplierCode','')
+        if not costCenterCode or not date or not supplierCode:
+            Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
+
+        return OrderHead.list(costCenterCode,date,supplierCode)
 
     @classmethod
     def SaveData(cls, trans, **kwargs):

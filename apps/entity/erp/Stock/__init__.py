@@ -220,7 +220,7 @@ class TransData(erp):
         orderLineGuids = [l.get('orderLineGUID') for l in data
                           if l.get('orderLineGUID', '') != '' and abs(round(l.get('qty'),6))>0]
         if not orderLineGuids:
-            Error(lang('4EF57331-1C22-43DC-8878-81617171E034')) # Shortage of some info of order lines!
+            Error(lang('4EF57331-1C22-43DC-8878-81617171E034') + '(OrderLineGuid)') # Shortage of some info of order lines!
 
         filter = [cls.OrderLineGuid.in_(orderLineGuids)]
 
