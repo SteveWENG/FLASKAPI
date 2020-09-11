@@ -25,5 +25,5 @@ class DailyTicket(Stockout):
 
     @classmethod
     def save_check(cls, data, **kw):
-        cls.CheckOrderLine(data)
+        # cls.CheckOrderLine(data)
         return lang('7B578615-3038-4691-BD5E-5093C62E36E4') # Successfully saved daily tickets
