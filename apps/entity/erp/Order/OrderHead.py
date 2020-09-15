@@ -49,6 +49,9 @@ class OrderHead(erp):
             self.lines = [OrderLine(l) for l in dflines.to_dict(orient='records')]
 
             with SaveDB() as session:
+                # 已入库，不能修改
+                if OrderLine.query.filter(OrderLine.HeadGuid==self.HeadGuid,OrderLine.RemainQty==0).first():
+                    Error(lang('A88FDE80-74BF-4553-AB45-28F4751D74DB'))
                 session.merge(self)
 
             return lang('A16AAA03-DCE8-4936-9D9E-FE23F9AE7378')
