@@ -183,17 +183,6 @@ class TransData(erp):
 
         return reduce(check, li)
 
-        ''' 8-28 下班
-        li = li.reset_index(drop=True)
-        for x in range(len(li)-1, 0, -1):
-            # 相同ItemCode/ItemCost
-            if ''.join([s for s in matchedFields if li.loc[x,s] != li.loc[x-1,s]]) == '':
-                li.loc[x-1,qtyField] = li.loc[x-1,qtyField] + li.loc[x,qtyField]
-                li.loc[x,qtyField] = 0
-
-        return li[li[qtyField] != 0].reset_index(drop=True) #.to_dict('records')
-        '''
-
     @classmethod
     def UpdateOpenningStock(cls, li):
         try:

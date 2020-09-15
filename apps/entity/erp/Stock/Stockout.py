@@ -23,7 +23,9 @@ class Stockout(TransData):
         li = merge(trans, itemcosts, how='left', left_on='itemCode', right_on='ItemCode')
         for s in ['EndQty','qty']:
             li[s].fillna(0,inplace=True)
-        items = ','.join(list(li[li.EndQty < li.qty].groupby('itemCode').groups.keys()))
+        # 每个Item的总库存>出库
+        tmp = li.groupby(by=['itemCode','qty'],as_index=False).agg({'EndQty':max})
+        items = ','.join(list(tmp[tmp.EndQty < tmp.qty].groupby('itemCode').groups.keys()))
 
             # list(set(itemcosts.groupby('ItemCode').groups.keys()).difference(set(li[li.EndQty >= li.qty].groupby('ItemCode').groups.keys()))))
         if items != '':

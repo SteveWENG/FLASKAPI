@@ -4,7 +4,7 @@ import pandas as pd
 from sqlalchemy import func
 
 from ..Order.OrderHead import OrderHead
-from ..Order.OrderLineF import OrderLineF
+from ..Order.OrderLine import OrderLine
 from ....utils.functions import *
 from .Stockin import Stockin
 from ..common.LangMast import lang
@@ -53,8 +53,8 @@ class POStockin(Stockin):
             cls.CheckOrderLine(data)
             guids = set([s.get('orderLineGuid') for s in data])
 
-            if OrderLineF.query.filter(OrderLineF.Guid.in_(guids), OrderLineF.RemainQty != 0,
-                                      func.lower(OrderLineF.Status)=='created',OrderLineF.DeleteTime == None) \
+            if OrderLine.query.filter(OrderLine.Guid.in_(guids), OrderLine.RemainQty != 0,
+                                      func.lower(OrderLine.Status)=='created',OrderLine.DeleteTime == None) \
                 .update({'RemainQty':0 },synchronize_session=False) < len(data) :
                 Error(lang('5B953DA5-DBD8-4301-88FB-AC94886060A7')) # This PO has been received
 

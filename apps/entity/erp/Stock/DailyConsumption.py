@@ -41,6 +41,7 @@ class DailyConsumption(Stockout):
                             cls.BusinessType==cls.type)\
             .with_entities(func.count(distinct(cls.TransGuid))).first()
         if tmp[0] > 1:
-            Error(lang('7F6D4A6B-8F9B-425E-82CE-5E4D6FC8A147') %(data[0].get('costCenterCode'),data[0].get('transDate')))
+            Error(lang('7F6D4A6B-8F9B-425E-82CE-5E4D6FC8A147')
+                  %(data[0].get('costCenterCode'),data[0].get('transDate')))
 
         return super().save_check(data, **kw)

@@ -3,7 +3,7 @@
 import pandas as pd
 from sqlalchemy import func,and_
 
-from .OrderLineF import OrderLineF
+from .OrderLine import OrderLine
 from ..Item.ItemMast import ItemMast
 from ..common.CCMast import CCMast
 from ..common.LangMast import lang
@@ -53,17 +53,17 @@ class OrderHead(erp):
 
     @classmethod
     def list(cls, costCenterCode, date, supplierCode):
-        qry = cls.query.join(OrderLineF, cls.HeadGuid == OrderLineF.HeadGuid) \
+        qry = cls.query.join(OrderLine, cls.HeadGuid == OrderLine.HeadGuid) \
             .join(CCMast, CCMast.CostCenterCode==costCenterCode) \
-            .join(ItemMast, and_(OrderLineF.ItemCode == ItemMast.ItemCode,CCMast.DBName==ItemMast.Division)) \
+            .join(ItemMast, and_(OrderLine.ItemCode == ItemMast.ItemCode,CCMast.DBName==ItemMast.Division)) \
             .filter(cls.CostCenterCode == costCenterCode, cls.OrderDate == date, cls.Active==True,
-                    OrderLineF.SupplierCode == supplierCode, OrderLineF.RemainQty != 0,
-                    func.lower(OrderLineF.Status) != 'completed', OrderLineF.DeleteTime == None) \
-            .with_entities(OrderLineF.Guid.label('orderLineGuid'), OrderLineF.ItemCode.label('itemCode'),
+                    OrderLine.SupplierCode == supplierCode, OrderLine.RemainQty != 0,
+                    func.lower(OrderLine.Status) != 'completed', OrderLine.DeleteTime == None) \
+            .with_entities(OrderLine.Guid.label('orderLineGuid'), OrderLine.ItemCode.label('itemCode'),
                            ItemMast.ItemName.label('itemName'), ItemMast.StockUnit.label('uom'),
-                           OrderLineF.PurchasePrice.label('purPrice'),
-                           OrderLineF.PurStk_Conversion.label('purStk_Conversion'),
-                           OrderLineF.RemainQty.label('qty'), OrderLineF.Remark.label('remark')).all()
+                           OrderLine.PurchasePrice.label('purPrice'),
+                           OrderLine.PurStk_Conversion.label('purStk_Conversion'),
+                           OrderLine.RemainQty.label('qty'), OrderLine.Remark.label('remark')).all()
 
 
         # tmp = [{k:getVal(getattr(l,k)) for k in l.keys() if getattr(l,k)} for l in qry]

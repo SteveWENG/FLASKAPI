@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
+import datetime
 
+from ....utils.functions import getGUID
 from ...erp import erp, db
 
 class OrderLine(erp):
@@ -17,4 +19,8 @@ class OrderLine(erp):
     AdjQty = db.Column(db.Numeric)
     RemainQty = db.Column(db.Numeric)
     Remark = db.Column()
+    CreateTime = db.Column(db.DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now)
 
+    Guid = db.Column(default=getGUID())
+    Status = db.Column(default='Created')
+    DeleteTime = db.Column(db.DateTime)
