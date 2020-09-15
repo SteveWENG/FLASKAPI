@@ -34,12 +34,16 @@ class OrderHead(erp):
         try:
 
             dflines = pd.DataFrame(data.get('orderLines'))
+            dflines['guid'] = [getGUID() for x in range(len(dflines))]
 
             # 新增
             if getNumber(self.Id) < 1:
                 self.HeadGuid = getGUID()
                 self.Id = None
-                dflines.drop([f for f in dflines if f.lower()=='id'], axis=1, inplace=True)
+                dflines.drop(['ID'], axis=1, inplace=True)
+            elif 'ID' in dflines.columns:
+                dflines['ID'].fillna(0,inplace=True)
+                dflines.loc[dflines['ID']>0,'guid'] = ''
 
             dflines['remainQty'] = dflines['qty']
             self.lines = [OrderLine(l) for l in dflines.to_dict(orient='records')]
