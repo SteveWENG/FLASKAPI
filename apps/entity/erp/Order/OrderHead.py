@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import pandas as pd
+import numpy as np
 from sqlalchemy import func,and_
 
 from .OrderLine import OrderLine
@@ -32,7 +33,6 @@ class OrderHead(erp):
     @dblog
     def save(self,data):
         try:
-
             dflines = pd.DataFrame(data.get('orderLines'))
             dflines['guid'] = [getGUID() for x in range(len(dflines))]
 
@@ -42,11 +42,11 @@ class OrderHead(erp):
                 self.Id = None
                 dflines.drop(['ID'], axis=1, inplace=True)
             elif 'ID' in dflines.columns:
-                dflines['ID'].fillna(0,inplace=True)
-                dflines.loc[dflines['ID']>0,'guid'] = ''
+                dflines.loc[dflines['ID']<1,'ID'] = np.nan
+                dflines.loc[(dflines['ID']==dflines['ID']),'guid'] = np.nan
 
             dflines['remainQty'] = dflines['qty']
-            self.lines = [OrderLine(l) for l in dflines.to_dict(orient='records')]
+            self.lines = [OrderLine(getdict(l),True) for l in dflines.to_dict(orient='records')]
 
             with SaveDB() as session:
                 # 已入库，不能修改
@@ -60,7 +60,7 @@ class OrderHead(erp):
 
     @classmethod
     def list(cls, costCenterCode, date, supplierCode):
-        qry = cls.query.join(OrderLine, cls.HeadGuid == OrderLine.HeadGuid) \
+        sql = cls.query.join(OrderLine, cls.HeadGuid == OrderLine.HeadGuid) \
             .join(CCMast, CCMast.CostCenterCode==costCenterCode) \
             .join(ItemMast, and_(OrderLine.ItemCode == ItemMast.ItemCode,CCMast.DBName==ItemMast.Division)) \
             .filter(cls.CostCenterCode == costCenterCode, cls.OrderDate == date, cls.Active==True,
@@ -69,9 +69,12 @@ class OrderHead(erp):
             .with_entities(OrderLine.Guid.label('orderLineGuid'), OrderLine.ItemCode.label('itemCode'),
                            ItemMast.ItemName.label('itemName'), ItemMast.StockUnit.label('uom'),
                            OrderLine.PurchasePrice.label('purPrice'),
+                           OrderLine.CreateTime,
                            OrderLine.PurStk_Conversion.label('purStk_Conversion'),
-                           OrderLine.RemainQty.label('qty'), OrderLine.Remark.label('remark')).all()
-
+                           OrderLine.RemainQty.label('qty'), OrderLine.Remark.label('remark'))
+        tmpdf = pd.read_sql(sql.statement, cls.getBind())
+        tmpdf['CreateTime'] = tmpdf['CreateTime'].max().strftime('%Y-%m-%d %H:%M:%S.%f')
+        tmpdf.rename(columns={'CreateTime': 'orderLineCreateTime'}, inplace=True)
 
         # tmp = [{k:getVal(getattr(l,k)) for k in l.keys() if getattr(l,k)} for l in qry]
-        return getdict(qry)
+        return tmpdf.to_dict('records')# getdict(qry)

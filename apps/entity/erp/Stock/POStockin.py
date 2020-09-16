@@ -53,10 +53,12 @@ class POStockin(Stockin):
             cls.CheckOrderLine(data)
             guids = set([s.get('orderLineGuid') for s in data])
 
+            createTime = getDateTime(kw.get('orderLineCreateTime')) + datetime.timedelta(seconds=1)
             if OrderLine.query.filter(OrderLine.Guid.in_(guids), OrderLine.RemainQty != 0,
+                                      OrderLine.CreateTime<createTime,
                                       func.lower(OrderLine.Status)=='created',OrderLine.DeleteTime == None) \
                 .update({'RemainQty':0 },synchronize_session=False) < len(data) :
-                Error(lang('5B953DA5-DBD8-4301-88FB-AC94886060A7')) # This PO has been received
+                Error(lang('5B953DA5-DBD8-4301-88FB-AC94886060A7')) # This PO has been received or changed
 
             return lang('2411C461-1F80-4CAF-B142-6A44A80BFD73') # Successfully save PO receipt
         except Exception as e:

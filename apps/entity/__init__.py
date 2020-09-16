@@ -3,6 +3,7 @@ from contextlib import contextmanager
 import functools
 from sqlalchemy import inspect
 from sqlalchemy.orm import attributes, properties
+import pandas as pd
 
 from ..utils.functions import *
 
@@ -15,15 +16,19 @@ class BaseModel(db.Model):
 
     # dict to BaseModel
     # d is a dict
-    def __init__(self, d=None):
+    # keepEmpty: 是否保留‘’和0
+    def __init__(self, d=None, keepEmpty=False):
         if not d:
             return
 
         fields = dir(self) #所有属性
+        # tablename = self.__tablename__ if self.__tablename__ else self.__class__.__name__.lower()
+        # table = db.Model.metadata.tables[tablename]
 
         for k, v in d.items():
             tmpkey = ''.join([f for f in fields if f.lower() == k.lower()]) #不分大小写，找出对应的属性
-            if tmpkey == '' or getStr(v) == '' or (tmpkey.lower()=='id' and getNumber(v)==0):  #无值和 Id
+            if tmpkey=='' or v==None or (not keepEmpty and  getStr(v)=='') \
+                    or (tmpkey.lower()=='id' and getNumber(v)<1):  #无值和 Id
                 continue
 
             #Date和Numeric，数据要转换

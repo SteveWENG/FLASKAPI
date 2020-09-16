@@ -3,6 +3,7 @@ import uuid
 from decimal import Decimal
 import random
 import math
+import pandas as pd
 
 from flask import abort, jsonify
 
@@ -15,6 +16,8 @@ def getGUID():
     return str(uuid.uuid1()).replace('-', '')[0:20] + s
 
 def getdict(obj):
+    if isinstance(obj,dict):
+        return {k:v for k,v in obj.items() if pd.notnull(v)}
     return [{k: getVal(getattr(l, k)) for k in l.keys() if getattr(l, k)} for l in obj]
 
 def getdict_del(obj):
@@ -42,6 +45,13 @@ def getDate(s):
     except Exception as e:
         raise e
 
+def getDateTime(s,format=None):
+    try:
+        if not format:
+            format = '%Y-%m-%d %H:%M:%S.%f'
+        return datetime.datetime.strptime(s, format)
+    except Exception as e:
+        raise e
 
 def getInt(o):
     if getStr(o) == '':

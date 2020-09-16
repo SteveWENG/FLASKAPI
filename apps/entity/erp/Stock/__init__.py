@@ -80,7 +80,7 @@ class TransData(erp):
             with cls.adds([l for l in li if abs(round(l.get('qty',0),6)) > 0]) as session:
                 if not hasattr(cls, 'save_check'):
                     pass
-                return cls.save_check(li,itemCodes=itemcodes)
+                return cls.save_check(li,itemCodes=itemcodes,orderLineCreateTime=data.get('orderLineCreateTime',''))
 
             return lang('F7083ED1-26B3-4BD2-82FD-976C401D4CC0') # Successfully saved stock transactions
         except Exception as e:
