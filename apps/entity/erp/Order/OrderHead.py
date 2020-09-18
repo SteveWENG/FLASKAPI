@@ -34,18 +34,16 @@ class OrderHead(erp):
     def save(self,data):
         try:
             dflines = pd.DataFrame(data.get('orderLines'))
-            dflines['guid'] = [getGUID() for x in range(len(dflines))]
 
             # 新增
             if getNumber(self.Id) < 1:
                 self.HeadGuid = getGUID()
                 self.Id = None
                 dflines.drop(['ID'], axis=1, inplace=True)
-            elif 'ID' in dflines.columns:
-                dflines.loc[dflines['ID']<1,'ID'] = np.nan
-                dflines.loc[(dflines['ID']==dflines['ID']),'guid'] = np.nan
 
-            dflines['remainQty'] = dflines['qty']
+            dflines['remainQty'] = dflines.apply(lambda x: (getNumber(x['adjQty']) if 'adjQty' in dflines.columns else 0)
+                                                           +getNumber(x['qty']),  axis=1)
+            dflines = dflines[(dflines['remainQty'] !=0)|(dflines['qty'] !=0)]
             self.lines = [OrderLine(getdict(l),True) for l in dflines.to_dict(orient='records')]
 
             with SaveDB() as session:

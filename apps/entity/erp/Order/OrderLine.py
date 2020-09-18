@@ -20,6 +20,6 @@ class OrderLine(erp):
     Remark = db.Column()
     CreateTime = db.Column(db.DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now)
 
-    Guid = db.Column()# default='')
+    Guid = db.Column(server_default='newid()')
     Status = db.Column(default='Created')
     DeleteTime = db.Column(db.DateTime)
