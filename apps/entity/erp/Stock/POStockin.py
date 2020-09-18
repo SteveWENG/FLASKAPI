@@ -35,8 +35,7 @@ class POStockin(Stockin):
         trans.loc[trans['purQty']>0,'qty'] = trans['purQty'] * trans['purStk_Conversion']
         trans.loc[trans['purQty']>0,'itemCost'] = trans['purPrice'] / trans['purStk_Conversion']
         trans.drop(['purQty', 'purPrice', 'purStk_Conversion'], axis=1, inplace=True)
-        # 每次入库唯一号码
-        trans['guid'] = [getGUID() for x in range(len(trans))]
+
         if kwargs.get('supplierCode','') != '':
             trans['supplierCode'] = kwargs.get('supplierCode','')
 

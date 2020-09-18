@@ -17,7 +17,7 @@ class TransData(erp):
     OrderLineGuid = db.Column()
     ItemCode = db.Column()
     ItemName = db.Column()
-    Guid = db.Column()
+    Guid = db.Column(server_default='newid()')
     IsServiceItem = db.Column(db.Boolean)
     UOM = db.Column()
     TransDate = db.Column(db.Date)
