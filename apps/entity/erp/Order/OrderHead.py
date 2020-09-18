@@ -48,7 +48,9 @@ class OrderHead(erp):
 
             with SaveDB() as session:
                 # 已入库，不能修改
-                if OrderLine.query.filter(OrderLine.HeadGuid==self.HeadGuid,OrderLine.RemainQty==0).first():
+                if OrderLine.query.filter(OrderLine.HeadGuid==self.HeadGuid,
+                                          OrderLine.Qty+func.coalesce(OrderLine.AdjQty,0)>0,
+                                          OrderLine.RemainQty==0).first():
                     Error(lang('A88FDE80-74BF-4553-AB45-28F4751D74DB'))
                 session.merge(self)
 
