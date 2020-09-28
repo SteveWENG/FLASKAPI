@@ -32,8 +32,12 @@ class POStockin(Stockin):
         #if not trans[(trans['purQty']>0)&(trans['purStk_Conversion']==0)].empty:
         #    Error(lang('3BD6363C-F4BD-46A8-A788-2CD6031E468E'))
 
-        trans.loc[trans['purQty']>0,'qty'] = trans['purQty'] * trans['purStk_Conversion']
-        trans.loc[trans['purQty']>0,'itemCost'] = trans['purPrice'] / trans['purStk_Conversion']
+        trans = trans[trans['purQty']>0]
+        if not trans[trans['purStk_Conversion']==0].empty:
+           Error(lang('3BD6363C-F4BD-46A8-A788-2CD6031E468E'))
+
+        trans['qty'] = trans['purQty'] * trans['purStk_Conversion']
+        trans['itemCost'] = trans['purPrice'] / trans['purStk_Conversion']
         trans.drop(['purQty', 'purPrice', 'purStk_Conversion'], axis=1, inplace=True)
 
         if kwargs.get('supplierCode','') != '':

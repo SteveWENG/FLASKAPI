@@ -40,7 +40,9 @@ def getStr(obj):
 
 def getDate(s):
     try:
-        return datetime.date(*map(int, s.split('-')))
+        if isinstance(s, str):
+            return datetime.date(*map(int, s.split('-')))
+        return s.strftime('%Y-%m-%d')
         # return datetime.date.strptime(s, '%Y-%m-%d')  # %H:%M:%S')
     except Exception as e:
         raise e
@@ -72,6 +74,8 @@ def getVal(s):
         return getStr(s)
     if isinstance(s,Decimal):
         return float(getNumber(s))
+    if isinstance(s,datetime.date):
+        return getDate(s)
     # if isinstance(s,datetime.date):
     #     return getDate(s)
     return s

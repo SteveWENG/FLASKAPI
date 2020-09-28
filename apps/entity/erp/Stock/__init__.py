@@ -17,7 +17,7 @@ class TransData(erp):
     OrderLineGuid = db.Column()
     ItemCode = db.Column()
     ItemName = db.Column()
-    Guid = db.Column(server_default='newid()')
+    BatchGuid = db.Column(server_default='newid()')
     IsServiceItem = db.Column(db.Boolean)
     UOM = db.Column()
     TransDate = db.Column(db.Date)
@@ -31,6 +31,7 @@ class TransData(erp):
     ItemCost = db.Column(db.Numeric)
     ItemPrice = db.Column(db.Numeric)
 
+    '''
     def todict(self):
         return {c.name: getattr(self, c.name, None) for c in self.__table__.columns if getattr(self, c.name, None) != None}
 
@@ -41,11 +42,73 @@ class TransData(erp):
     @classmethod
     def ServiceItemTrans(cls, data):
         return list(filter(lambda l: l.get('isServiceItem', False) == True, data))
+        
+    #库存查询
+    @classmethod
+    def FIFO(cls, costCenterCode, date=datetime.date.today(), itemcodes=None):
+        if itemcodes == None: # None 无；[] 全部
+            Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF')) # No data
+
+        filters = [cls.CostCenterCode==costCenterCode, cls.TransDate<=date]
+        if itemcodes != None and len(itemcodes) > 0:
+            filters.append(cls.ItemCode.in_(itemcodes))
+
+        tmpsql = cls.query.filter(*filters, func.abs(func.round(func.coalesce(cls.Qty,0),6))>1/1000000)\
+            .with_entities(cls.BatchGuid,cls.ItemCode,cls.TransDate.label('INDATE'),cls.ItemCost,
+                           func.round(cls.Qty,6).label('InQty'),
+                           func.max(cls.Id).over().label('MAXID'),
+                           func.sum(case([(cls.Qty>0, cls.Qty)],else_=0))
+                           .over(partition_by=cls.ItemCode,order_by=[cls.TransDate, cls.Id]).label('EndQty'),
+                           func.sum(case([(cls.Qty<0, cls.Qty)],else_=0))
+                           .over(partition_by=cls.ItemCode).label('OutQty')).subquery()
+        tmpsql = select([tmpsql]).where(and_(tmpsql.c.InQty>0,func.round(tmpsql.c.EndQty+tmpsql.c.OutQty,6)>0))\
+            .select_from(tmpsql)
+        tmpList = pd.read_sql(tmpsql, cls.getBind())
+
+        # 无库存
+        if tmpList.empty:
+            Error(lang('2CF04A40-C498-406F-964E-36C0B17EC765')) # No stock
+
+        tmpList['EndQty'] = tmpList['EndQty'] + tmpList['OutQty']
+        tmpList['StartQty'] = tmpList['EndQty'] - tmpList['InQty'] #tmpList.apply(lambda l: max(getNumber(l.get('EndQty')) - getNumber(l.get('Qty')), 0), axis=1)
+        tmpList.loc[tmpList['StartQty']<0,'StartQty'] = 0
+        tmpList.loc[tmpList['StartQty']==0, 'InQty'] = tmpList['EndQty']
+        tmpList.drop(['OutQty'],axis=1, inplace=True)
+        return tmpList
+        
+    @classmethod
+    def ZipStockList(cls, li):
+        if li.empty:
+            return li
+
+        matchedFields = [s for s in li if s.lower() in ('itemcode','itemcost')]
+        if len(li) == len(li.groupby(matchedFields)):
+            return li
+
+        qtyField = ''.join([s for s in li if s.lower() == 'qty'])
+
+        li = [[]] + li.to_dict('records')
+        def check(f,s):
+            if len(f) == 0 or ''.join([str for str in matchedFields if f[len(f)-1].get(str) != s.get(str)]) != '':
+                return f + [s]
+
+            f[len(f)-1][qtyField] = f[len(f)-1].get(qtyField) + s.get(qtyField)
+            return f
+
+        return reduce(check, li)
+    '''
 
     @classmethod
     def SummaryInfo(cls, data):
-        return {'costCenterCode': data.get('costCenterCode', ''), 'createUser': data.get('creater', ''),
-                'transDate': data.get('date', ''), 'transGuid': getGUID(), 'BusinessType': cls.type}
+        dic = {'costCenterCode': data.get('costCenterCode', ''), 'createUser': data.get('creater', ''),
+                'transGuid': getGUID(), 'BusinessType': cls.type}
+
+        if data.get('supplierCode', '') != '':
+            dic['supplierCode'] = data.get('supplierCode')
+
+        if data.get('transDate', '') != '':
+            dic['transDate'] = data.get('transDate')
+        return dic
 
     @classmethod
     @dblog
@@ -78,24 +141,10 @@ class TransData(erp):
             li = [dict({k:v for k,v in l.items() if getStr(v) != ''}, **dic) for l in li.to_dict('records')]
 
             with cls.adds([l for l in li if abs(round(l.get('qty',0),6)) > 0]) as session:
-                if not hasattr(cls, 'save_check'):
-                    pass
-                return cls.save_check(li,itemCodes=itemcodes,orderLineCreateTime=data.get('orderLineCreateTime',''))
+                if hasattr(cls, 'save_check'):
+                    return cls.save_check(li,itemCodes=itemcodes,orderLineCreateTime=data.get('orderLineCreateTime',''))
 
             return lang('F7083ED1-26B3-4BD2-82FD-976C401D4CC0') # Successfully saved stock transactions
-        except Exception as e:
-            raise e
-
-    @classmethod
-    def PrepareSave(cls, data):
-        try:
-            dic = {'costCenterCode': data.get('costCenterCode', ''), 'createUser': data.get('creater', ''),
-                   'transDate': data.get('date', ''), 'transGuid': getGUID(), 'BusinessType': cls.type}
-
-            itemcodes = [] #set([l.get('itemCode') for l in stockItems])
-            if len(itemcodes) == 0:
-                itemcodes = None
-            return dic, itemcodes
         except Exception as e:
             raise e
 
@@ -113,13 +162,13 @@ class TransData(erp):
 
         try:
             qry = cls.query.filter(*filters)\
-                .with_entities(cls.ItemCode,cls.Guid,func.min(cls.Id).label('Id'),
+                .with_entities(cls.ItemCode,cls.BatchGuid,func.min(cls.Id).label('Id'),
                                func.round(func.sum(func.coalesce(cls.Qty,0)),6).label('Qty'),
                                func.min(case([(func.coalesce(cls.Qty, 0) > 0, cls.TransDate)],
                                              else_=None)).label('TransDate'),
                                func.max(case([(func.coalesce(cls.Qty, 0) > 0, cls.ItemCost)],
                                              else_=0)).label('ItemCost'))\
-                .group_by(cls.ItemCode,cls.Guid)\
+                .group_by(cls.ItemCode,cls.BatchGuid)\
                 .having(func.round(func.sum(func.coalesce(cls.Qty,0)),6) >1/1000000)
 
             tmp = pd.read_sql(qry.statement, cls.getBind())
@@ -128,60 +177,6 @@ class TransData(erp):
             return tmp
         except Exception as e:
             raise e
-
-    #库存查询
-    @classmethod
-    def FIFO(cls, costCenterCode, date=datetime.date.today(), itemcodes=None):
-        if itemcodes == None: # None 无；[] 全部
-            Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF')) # No data
-
-        filters = [cls.CostCenterCode==costCenterCode, cls.TransDate<=date]
-        if itemcodes != None and len(itemcodes) > 0:
-            filters.append(cls.ItemCode.in_(itemcodes))
-
-        tmpsql = cls.query.filter(*filters, func.abs(func.round(func.coalesce(cls.Qty,0),6))>1/1000000)\
-            .with_entities(cls.Guid,cls.ItemCode,cls.TransDate.label('INDATE'),cls.ItemCost,
-                           func.round(cls.Qty,6).label('InQty'),
-                           func.max(cls.Id).over().label('MAXID'),
-                           func.sum(case([(cls.Qty>0, cls.Qty)],else_=0))
-                           .over(partition_by=cls.ItemCode,order_by=[cls.TransDate, cls.Id]).label('EndQty'),
-                           func.sum(case([(cls.Qty<0, cls.Qty)],else_=0))
-                           .over(partition_by=cls.ItemCode).label('OutQty')).subquery()
-        tmpsql = select([tmpsql]).where(and_(tmpsql.c.InQty>0,func.round(tmpsql.c.EndQty+tmpsql.c.OutQty,6)>0))\
-            .select_from(tmpsql)
-        tmpList = pd.read_sql(tmpsql, cls.getBind())
-
-        # 无库存
-        if tmpList.empty:
-            Error(lang('2CF04A40-C498-406F-964E-36C0B17EC765')) # No stock
-
-        tmpList['EndQty'] = tmpList['EndQty'] + tmpList['OutQty']
-        tmpList['StartQty'] = tmpList['EndQty'] - tmpList['InQty'] #tmpList.apply(lambda l: max(getNumber(l.get('EndQty')) - getNumber(l.get('Qty')), 0), axis=1)
-        tmpList.loc[tmpList['StartQty']<0,'StartQty'] = 0
-        tmpList.loc[tmpList['StartQty']==0, 'InQty'] = tmpList['EndQty']
-        tmpList.drop(['OutQty'],axis=1, inplace=True)
-        return tmpList
-
-    @classmethod
-    def ZipStockList(cls, li):
-        if li.empty:
-            return li
-
-        matchedFields = [s for s in li if s.lower() in ('itemcode','itemcost')]
-        if len(li) == len(li.groupby(matchedFields)):
-            return li
-
-        qtyField = ''.join([s for s in li if s.lower() == 'qty'])
-
-        li = [[]] + li.to_dict('records')
-        def check(f,s):
-            if len(f) == 0 or ''.join([str for str in matchedFields if f[len(f)-1].get(str) != s.get(str)]) != '':
-                return f + [s]
-
-            f[len(f)-1][qtyField] = f[len(f)-1].get(qtyField) + s.get(qtyField)
-            return f
-
-        return reduce(check, li)
 
     @classmethod
     def UpdateOpenningStock(cls, li):
@@ -194,7 +189,6 @@ class TransData(erp):
 
             now = datetime.date.today()
             li['TransDate'] = datetime.date(now.year,now.month,1) + datetime.timedelta(days=-1)
-            li['Guid'] = [getGUID() for x in range(len(li))]
             li = li.to_dict('records')
             with cls.adds(li) as _:
                 pass
@@ -209,8 +203,9 @@ class TransData(erp):
         orderLineGuids = [l.get('orderLineGuid') for l in data
                           if l.get('orderLineGuid', '') != '' and abs(round(l.get('qty'),6))>0]
         if not orderLineGuids:
-            Error(lang('4EF57331-1C22-43DC-8878-81617171E034') + '(OrderLineGuid)') # Shortage of some info of order lines!
+            Error(lang('4EF57331-1C22-43DC-8878-81617171E034') % ''.join(orderLineGuids)) # Shortage of some info of order lines!
 
+        # 检查tblTransData中OrderLineGuid重复
         filter = [cls.OrderLineGuid.in_(orderLineGuids)]
 
         if str(cls).find('DailyTicket.DailyTicket')  > 0:  # 收入一天一个

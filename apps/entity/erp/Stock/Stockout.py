@@ -45,8 +45,8 @@ class Stockout(TransData):
         try:
 
             # 按批号合并，检查库存有效
-            guids = set([l.get('Guid') for l in data])
-            tmp = cls.query.filter(func.coalesce(cls.Guid,'').in_(guids)).with_entities(cls.ItemCode)\
+            batchguids = set([l.get('BatchGuid') for l in data])
+            tmp = cls.query.filter(func.coalesce(cls.BatchGuid,'').in_(batchguids)).with_entities(cls.ItemCode)\
                 .group_by(cls.ItemCode).having(func.round(func.sum(func.coalesce(cls.Qty,0)),6) < -1/1000000).all()
             if not tmp:
                 return lang('130E74A9-0A1B-4000-A82D-96A1CB13BD68') # Sucessfully saved stockout
