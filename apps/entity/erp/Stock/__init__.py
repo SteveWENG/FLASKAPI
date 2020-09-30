@@ -30,6 +30,7 @@ class TransData(erp):
     Qty = db.Column(db.Numeric)
     ItemCost = db.Column(db.Numeric)
     ItemPrice = db.Column(db.Numeric)
+    SysGuid = db.Column(server_default='newid()')
 
     '''
     def todict(self):
@@ -106,8 +107,8 @@ class TransData(erp):
         if data.get('supplierCode', '') != '':
             dic['supplierCode'] = data.get('supplierCode')
 
-        if data.get('transDate', '') != '':
-            dic['transDate'] = data.get('transDate')
+        if data.get('date', '') != '':
+            dic['transDate'] = data.get('date')
         return dic
 
     @classmethod

@@ -10,6 +10,7 @@ from ..Stock import TransData
 
 class Stockout(TransData):
     type = 'Stockout'
+    msgSaveOk = '130E74A9-0A1B-4000-A82D-96A1CB13BD68'
 
     @classmethod
     def SaveData(cls, trans, **kw):
@@ -48,9 +49,12 @@ class Stockout(TransData):
             batchguids = set([l.get('BatchGuid') for l in data])
             tmp = cls.query.filter(func.coalesce(cls.BatchGuid,'').in_(batchguids)).with_entities(cls.ItemCode)\
                 .group_by(cls.ItemCode).having(func.round(func.sum(func.coalesce(cls.Qty,0)),6) < -1/1000000).all()
-            if not tmp:
-                return lang('130E74A9-0A1B-4000-A82D-96A1CB13BD68') # Sucessfully saved stockout
+            if tmp:
+                Error(lang('8145E10D-4F00-4FEC-A1A1-B7005DC5F1B1') % ','.join(set([l.ItemCode for l in tmp])))
 
-            Error(lang('8145E10D-4F00-4FEC-A1A1-B7005DC5F1B1') % ','.join(set([l.ItemCode for l in tmp])))
+            if str(cls).find('POReturn.POReturn') > 0:
+                return lang(cls.msgSaveOk)
+
+            return lang('130E74A9-0A1B-4000-A82D-96A1CB13BD68')  # Sucessfully saved stockout
         except Exception as e:
             raise e
