@@ -60,21 +60,21 @@ class OrderHead(erp):
 
     @classmethod
     def list(cls, costCenterCode, date, supplierCode):
+        # .join(CCMast, CCMast.CostCenterCode==costCenterCode) \
+        # .join(ItemMast, and_(OrderLine.ItemCode == ItemMast.ItemCode,CCMast.DBName==ItemMast.Division)) \
         sql = cls.query.join(OrderLine, cls.HeadGuid == OrderLine.HeadGuid) \
-            .join(CCMast, CCMast.CostCenterCode==costCenterCode) \
-            .join(ItemMast, and_(OrderLine.ItemCode == ItemMast.ItemCode,CCMast.DBName==ItemMast.Division)) \
             .filter(cls.CostCenterCode == costCenterCode, cls.OrderDate == date, cls.Active==True,
                     OrderLine.SupplierCode == supplierCode, OrderLine.RemainQty != 0,
                     func.lower(OrderLine.Status) != 'completed', OrderLine.DeleteTime == None) \
             .with_entities(OrderLine.Guid.label('orderLineGuid'), OrderLine.ItemCode.label('itemCode'),
-                           ItemMast.ItemName.label('itemName'), ItemMast.StockUnit.label('uom'),
+                           #ItemMast.ItemName.label('itemName'), ItemMast.StockUnit.label('uom'),
                            OrderLine.PurchasePrice.label('purPrice'),
                            OrderLine.CreateTime,
                            OrderLine.PurStk_Conversion.label('purStk_Conversion'),
                            OrderLine.RemainQty.label('qty'), OrderLine.Remark.label('remark'))
         tmpdf = pd.read_sql(sql.statement, cls.getBind())
         tmpdf['CreateTime'] = tmpdf['CreateTime'].max().strftime('%Y-%m-%d %H:%M:%S.%f')
-        tmpdf.rename(columns={'CreateTime': 'orderLineCreateTime'}, inplace=True)
+        # tmpdf.rename(columns={'CreateTime': 'orderLineCreateTime'}, inplace=True)
 
         # tmp = [{k:getVal(getattr(l,k)) for k in l.keys() if getattr(l,k)} for l in qry]
-        return tmpdf.to_dict('records')# getdict(qry)
+        return tmpdf    #.to_dict('records')

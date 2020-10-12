@@ -17,9 +17,9 @@ class DailyConsumption(Stockout):
         date = data.get('date', '')
         if not costCenterCode or not date:
             Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
-        division = CCMast.GetDivision(costCenterCode)
+
         try:
-            tmp = ItemMast.list(division)
+            tmp = ItemMast.list(costCenterCode)
             tmp.drop('Id', axis=1, inplace=True)
             tmp = merge(cls.ItemBatchCost(costCenterCode, date), tmp,
                         how='left', left_on='ItemCode', right_on='ItemCode')

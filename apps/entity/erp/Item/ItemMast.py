@@ -2,6 +2,7 @@
 
 import pandas as pd
 from ..Item import BI_DM, db
+from ..common.CCMast import CCMast
 
 class ItemMast(BI_DM):
     __tablename__= 'DM_D_DIGIMENU_STDPURCHASEPRICE'
@@ -9,9 +10,9 @@ class ItemMast(BI_DM):
     Division = db.Column()
     ItemCode = db.Column()
     ItemName = db.Column()
-    StockUnit = db.Column('Stock_Unit')
+    Stock_Unit = db.Column('Stock_Unit')
 
     @classmethod
-    def list(cls, divsion):
-        sql = cls.query.filter(cls.Division==divsion)
+    def list(cls, costCenterCode):
+        sql = cls.query.filter(cls.Division==CCMast.GetDivision(costCenterCode))
         return pd.read_sql(sql.statement,cls.getBind())

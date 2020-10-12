@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 
+from pandas import merge
 import pandas as pd
 from sqlalchemy import func
 
+from ..Item.ItemMast import ItemMast
 from ..Order.OrderHead import OrderHead
 from ..Order.OrderLine import OrderLine
 from ....utils.functions import *
@@ -21,7 +23,11 @@ class POStockin(Stockin):
         if not costCenterCode or not date or not supplierCode:
             Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
 
-        return OrderHead.list(costCenterCode,date,supplierCode)
+        tmp1 = OrderHead.list(costCenterCode,date,supplierCode)
+        tmp2 = ItemMast.list(costCenterCode)[['ItemCode','ItemName','Stock_Unit']]
+        tmp1 = merge(tmp1,tmp2,left_on='itemCode',right_on='ItemCode')
+        tmp1.rename(columns={'ItemName':'itemName','Stock_Unit':'uom','CreateTime': 'orderLineCreateTime'}, inplace=True)
+        return tmp1.to_dict('records')
 
     @classmethod
     def SaveData(cls, trans, **kwargs):
