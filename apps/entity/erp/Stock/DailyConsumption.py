@@ -20,7 +20,6 @@ class DailyConsumption(Stockout):
 
         try:
             tmp = ItemMast.list(costCenterCode)
-            tmp.drop('Id', axis=1, inplace=True)
             tmp = merge(cls.ItemBatchCost(costCenterCode, date), tmp,
                         how='left', left_on='ItemCode', right_on='ItemCode')
             tmp.fillna('', inplace=True)

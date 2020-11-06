@@ -2,7 +2,7 @@
 
 import pandas as pd
 import numpy as np
-from sqlalchemy import func,and_
+from sqlalchemy import func, and_, or_
 
 from .OrderLine import OrderLine
 from ..Item.ItemMast import ItemMast
@@ -20,6 +20,7 @@ class OrderHead(erp):
     HeadGuid = db.Column()
     OrderNo = db.Column()
     OrderDate = db.Column(db.Date)
+    OrderType = db.Column()
     CostCenterCode = db.Column()
     CreateUser = db.Column()
     AppGuid = db.Column()
@@ -59,20 +60,27 @@ class OrderHead(erp):
             raise e
 
     @classmethod
-    def list(cls, costCenterCode, date, supplierCode):
+    def list(cls, costCenterCode, date, supplierCode, orderType):
         # .join(CCMast, CCMast.CostCenterCode==costCenterCode) \
         # .join(ItemMast, and_(OrderLine.ItemCode == ItemMast.ItemCode,CCMast.DBName==ItemMast.Division)) \
-        sql = cls.query.join(OrderLine, cls.HeadGuid == OrderLine.HeadGuid) \
-            .filter(cls.CostCenterCode == costCenterCode, cls.OrderDate == date, cls.Active==True,
+        filters = [cls.CostCenterCode == costCenterCode, cls.OrderDate == date, cls.Active==True,
                     OrderLine.SupplierCode == supplierCode, OrderLine.RemainQty != 0,
-                    func.lower(OrderLine.Status) != 'completed', OrderLine.DeleteTime == None) \
-            .with_entities(OrderLine.Guid.label('orderLineGuid'), OrderLine.ItemCode.label('itemCode'),
+                    func.lower(OrderLine.Status) != 'completed', OrderLine.DeleteTime == None]
+        if orderType:
+            filters.append(cls.OrderType == orderType)
+
+        sql = cls.query.join(OrderLine, cls.HeadGuid == OrderLine.HeadGuid) \
+            .filter(*filters)\
+            .with_entities(OrderLine.Guid.label('orderLineGuid'),OrderLine.ItemCode.label('itemCode'),
                            #ItemMast.ItemName.label('itemName'), ItemMast.StockUnit.label('uom'),
                            OrderLine.PurchasePrice.label('purPrice'),
                            OrderLine.CreateTime,
                            OrderLine.PurStk_Conversion.label('purStk_Conversion'),
                            OrderLine.RemainQty.label('qty'), OrderLine.Remark.label('remark'))
         tmpdf = pd.read_sql(sql.statement, cls.getBind())
+        if tmpdf.empty:
+            return []
+
         tmpdf['CreateTime'] = tmpdf['CreateTime'].max().strftime('%Y-%m-%d %H:%M:%S.%f')
         # tmpdf.rename(columns={'CreateTime': 'orderLineCreateTime'}, inplace=True)
 

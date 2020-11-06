@@ -126,22 +126,22 @@ class TransData(erp):
 
             tmpd = pd.DataFrame(data.get('data'))
             tmpd = DataFrameSetNan(tmpd)
-            '''
-            for s in tmpd.columns[tmpd.isna().any()]:
-                tmpd[s].fillna(0 if s in tmpd.select_dtypes(include='number').columns else '',inplace=True)
-            '''
-            #qty, purQty合并
-            fqtys = {s:'sum' for s in tmpd if s.lower().startswith('qty')==True  or s.lower().endswith('qty')==True}
-            fgroup = [s for s in tmpd if s.lower().startswith('qty') !=True and  s.lower().endswith('qty') !=True]
-            tmpd = tmpd.groupby(by=fgroup, as_index=False).agg(fqtys)
-            li = cls.SaveData(tmpd, **dic, itemCodes=itemcodes)
 
+            #合并qty, purQty, xxxQty
+            fqtys = {s:'sum' for s in tmpd if s.lower().endswith('qty')==True}
+            fgroup = [s for s in tmpd if s.lower().endswith('qty') !=True]
+            tmpd = tmpd.groupby(by=fgroup, as_index=False).agg(fqtys)
+
+            # 存前数据处理
+            li = cls.SaveData(tmpd, **dic, itemCodes=itemcodes)
             if li.empty:
                 Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF')) # No data to save
 
+            li = DataFrameSetNan(li)
             li = [dict({k:v for k,v in l.items() if getStr(v) != ''}, **dic) for l in li.to_dict('records')]
 
             with cls.adds([l for l in li if abs(round(l.get('qty',0),6)) > 0]) as session:
+                # 存后数据检查
                 if hasattr(cls, 'save_check'):
                     return cls.save_check(li,itemCodes=itemcodes,orderLineCreateTime=data.get('orderLineCreateTime',''))
 
@@ -159,7 +159,10 @@ class TransData(erp):
                    func.abs(func.round(func.coalesce(cls.Qty,0),6))>1/1000000]
         if len(itemcodes) > 0:
             filters.append(cls.ItemCode.in_(itemcodes))
-        filters.append(or_(cls.TransDate<=date, func.round(func.coalesce(cls.Qty,0),6)<-1/1000000))
+
+        # filters.append(or_(cls.TransDate<=date, func.round(func.coalesce(cls.Qty,0),6)<-1/1000000))
+        # 期初和入库<=date,其它业务全部
+        filters.append(or_(~cls.BusinessType.in_(['OpeningStock','POReceipt','Stockin']), cls.TransDate<=date))
 
         try:
             qry = cls.query.filter(*filters)\
@@ -199,6 +202,9 @@ class TransData(erp):
         except Exception as e:
             raise e
 
+    # tblTransData中OrderLineGuid
+    # 采购入库，一条采购行只能入一次
+    # 收入，一条销售行可以多次出库
     @classmethod
     def CheckOrderLine(cls, data):
         orderLineGuids = [l.get('orderLineGuid') for l in data
@@ -208,9 +214,9 @@ class TransData(erp):
 
         # 检查tblTransData中OrderLineGuid重复
         filter = [cls.OrderLineGuid.in_(orderLineGuids)]
-
         if str(cls).find('DailyTicket.DailyTicket')  > 0:  # 收入一天一个
             filter.append(cls.TransDate == data[0].get('transDate'))
+            
         tmp = cls.query.filter(*filter) \
             .with_entities(func.count(distinct(cls.OrderLineGuid)).label('GuidCount'),  # 全部save
                            func.count(cls.Id).label('TotalCount')).first()  # 重复save

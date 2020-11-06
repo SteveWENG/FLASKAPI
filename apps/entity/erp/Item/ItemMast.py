@@ -14,5 +14,6 @@ class ItemMast(BI_DM):
 
     @classmethod
     def list(cls, costCenterCode):
-        sql = cls.query.filter(cls.Division==CCMast.GetDivision(costCenterCode))
+        sql = cls.query.filter(cls.Division==CCMast.GetDivision(costCenterCode))\
+            .with_entities(cls.ItemCode,cls.ItemName,cls.Stock_Unit).distinct()
         return pd.read_sql(sql.statement,cls.getBind())

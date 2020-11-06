@@ -21,7 +21,7 @@ class Stockout(TransData):
 
         #stockout = pd.DataFrame(trans)  # data.get('data'))
 
-        li = merge(trans, itemcosts, how='left', left_on='itemCode', right_on='ItemCode')
+        li = merge(trans[trans['qty']>0], itemcosts, how='left', left_on='itemCode', right_on='ItemCode')
         for s in ['EndQty','qty']:
             li[s].fillna(0,inplace=True)
         # 每个Item的总库存>出库

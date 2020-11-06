@@ -19,7 +19,7 @@ class DailyTicket(Stockout):
 
     @classmethod
     def SaveData(cls, trans, **kw):
-
+        trans = trans[trans['qty']>0]
         trans['qty'] = -trans['qty']
         return trans #tmp.to_dict('records')
 

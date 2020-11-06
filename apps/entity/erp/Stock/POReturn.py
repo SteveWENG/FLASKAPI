@@ -94,18 +94,22 @@ class POReturn(Stockout):
         # 采购退货记录
         rslt = qry[['SysGuid','BatchGuid','TransDate','itemCode','itemName','ItemCost','qty']]
 
+        # 检查库存是否满足退货，否则需要出库退货
         stocktrans.sort_values(by=['BatchGuid', 'TransDate', 'Id'], inplace=True)
         stocktrans['EndQty'] = stocktrans.groupby('BatchGuid')['TransQty'].cumsum()
         qry = merge(trans, stocktrans[stocktrans['BusinessType'] !='POReceipt'],
                     left_on='batchGuid', right_on='BatchGuid')
 
-        qry = qry[qry['qty']+qry['EndQty']<0]
-        qry['StartQty'] = qry['EndQty'] - qry['TransQty']
-        # 库存不满足采购退货
-        qry['OutQty'] = qry.apply(lambda x: -1 * max(x['TransQty'],x['EndQty']+x['qty']),axis=1)
+        if not qry.empty: #有出库记录
+            qry = qry[qry['qty']+qry['EndQty']<0]
 
-        rslt = qry[['SysGuid','BatchGuid','TransDate','itemCode','itemName','ItemCost','OutQty']]\
-            .rename(columns={'OutQty':'qty'}).append(rslt,ignore_index=True)
+            if not qry.empty: # 库存 < 退货
+                qry['StartQty'] = qry['EndQty'] - qry['TransQty']
+                # 库存不满足采购退货
+                qry['OutQty'] = qry.apply(lambda x: -1 * max(x['TransQty'],x['EndQty']+x['qty']),axis=1)
+
+                rslt = qry[['SysGuid','BatchGuid','TransDate','itemCode','itemName','ItemCost','OutQty']]\
+                    .rename(columns={'OutQty':'qty'}).append(rslt,ignore_index=True)
 
         # 采购退货日期 = max(出库日期)
         rslt['TransDate'] = rslt.apply(lambda x: x['TransDate'] if qry[qry['BatchGuid'] == x['BatchGuid']].empty
