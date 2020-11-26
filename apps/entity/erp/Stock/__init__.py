@@ -149,9 +149,8 @@ class TransData(erp):
         except Exception as e:
             raise e
 
-    #Batch cost
     @classmethod
-    def ItemBatchCost(cls,costCenterCode, date=datetime.date.today(), itemcodes=[]):
+    def __FiltersOfStock(cls,costCenterCode, date=datetime.date.today(), itemcodes=[]):
         if itemcodes == None: # None 无；[] 全部
             Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF')) # No data
 
@@ -163,9 +162,24 @@ class TransData(erp):
         # filters.append(or_(cls.TransDate<=date, func.round(func.coalesce(cls.Qty,0),6)<-1/1000000))
         # 期初和入库<=date,其它业务全部
         filters.append(or_(~cls.BusinessType.in_(['OpeningStock','POReceipt','Stockin']), cls.TransDate<=date))
+        return filters
 
+    @classmethod
+    def ItemStock(cls,costCenterCode, date=datetime.date.today(), itemcodes=[]):
+        return pd.read_sql(cls.query.filter(*cls.__FiltersOfStock(costCenterCode,date,itemcodes))
+                           .with_entities(cls.ItemCode,
+                                          func.round(func.sum(func.coalesce(cls.Qty,0)),6).label('stockQty'))
+                           .group_by(cls.ItemCode)
+                           .having(func.round(func.sum(func.coalesce(cls.Qty,0)),6) >1/1000000).statement,cls.getBind())
+
+
+
+
+    #Batch cost
+    @classmethod
+    def ItemBatchCost(cls,costCenterCode, date=datetime.date.today(), itemcodes=[]):
         try:
-            qry = cls.query.filter(*filters)\
+            qry = cls.query.filter(*cls.__FiltersOfStock(costCenterCode,date,itemcodes))\
                 .with_entities(cls.ItemCode,cls.BatchGuid,func.min(cls.Id).label('Id'),
                                func.round(func.sum(func.coalesce(cls.Qty,0)),6).label('Qty'),
                                func.min(case([(func.coalesce(cls.Qty, 0) > 0, cls.TransDate)],
@@ -176,6 +190,9 @@ class TransData(erp):
                 .having(func.round(func.sum(func.coalesce(cls.Qty,0)),6) >1/1000000)
 
             tmp = pd.read_sql(qry.statement, cls.getBind())
+            if tmp.empty:
+                return tmp
+
             tmp = tmp.sort_values(axis=0,by=['ItemCode','TransDate','Id'])
             tmp['EndQty'] = tmp.groupby('ItemCode')['Qty'].cumsum()
             return tmp
@@ -208,9 +225,12 @@ class TransData(erp):
     @classmethod
     def CheckOrderLine(cls, data):
         orderLineGuids = [l.get('orderLineGuid') for l in data
-                          if l.get('orderLineGuid', '') != '' and abs(round(l.get('qty'),6))>0]
+                          if l.get('orderLineGuid', '') != '' and abs(round(l.get('qty',0),6))>0]
         if not orderLineGuids:
-            Error(lang('4EF57331-1C22-43DC-8878-81617171E034') % ''.join(orderLineGuids)) # Shortage of some info of order lines!
+            if str(cls).find('DailyTicket.DailyTicket')  > 0:
+                Error(lang('4EF57331-1C22-43DC-8878-81617171E034') % ''.join(orderLineGuids)) # Shortage of some info of order lines!
+            else: # 采购入库0收货
+                return
 
         # 检查tblTransData中OrderLineGuid重复
         filter = [cls.OrderLineGuid.in_(orderLineGuids)]

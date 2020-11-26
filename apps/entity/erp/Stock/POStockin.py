@@ -17,17 +17,23 @@ class POStockin(Stockin):
 
     @classmethod
     def items(cls, data):
+        headGuid = data.get('headGuid', '')
         costCenterCode = data.get('costCenterCode', '')
         date = data.get('date', '')
         supplierCode = data.get('supplierCode','')
         orderType = data.get('orderType','')
-        if not costCenterCode or not date or not supplierCode:
+        if not headGuid or not costCenterCode or not date or not supplierCode:
             Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
 
-        tmp1 = OrderHead.list(costCenterCode,date,supplierCode,orderType)
+        tmp1 = OrderHead.list(headGuid,costCenterCode,date,supplierCode,orderType,'submitted')
+        if tmp1.empty:
+            Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
+
         tmp2 = ItemMast.list(costCenterCode)[['ItemCode','ItemName','Stock_Unit']]
         tmp1 = merge(tmp1,tmp2,left_on='itemCode',right_on='ItemCode')
         tmp1.rename(columns={'ItemName':'itemName','Stock_Unit':'uom','CreateTime': 'orderLineCreateTime'}, inplace=True)
+        tmp1['stockQty'] = tmp1['qty'] * 1.1
+
         return tmp1.to_dict('records')
 
     @classmethod
@@ -37,8 +43,11 @@ class POStockin(Stockin):
         #trans = trans[trans['purQty']>0]
 
         # 必须有采购单位 -> 库存单位的系数
-        if not trans[(trans['purQty']>0)&(trans['purStk_Conversion']==0)].empty:
-           Error(lang('3BD6363C-F4BD-46A8-A788-2CD6031E468E'))
+        # 0收货
+        if ('purQty' not in trans.columns) or ('purStk_Conversion' not in trans.columns) or \
+                not trans[(trans['purQty']>0)&(trans['purStk_Conversion']==0)].empty:
+           return trans # Error(lang('3BD6363C-F4BD-46A8-A788-2CD6031E468E'))
+
 
         trans.loc[trans['purQty']>0,'qty'] = trans['purQty'] * trans['purStk_Conversion']
         trans.loc[trans['purQty']>0,'itemCost'] = trans['purPrice'] / trans['purStk_Conversion']
@@ -54,8 +63,10 @@ class POStockin(Stockin):
     @classmethod
     def save_check(cls, data, **kw):
         try:
+            '''0收货
             if not data or len(data) == 0:
                 Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF')) # No PO lines to save
+            '''
 
             cls.CheckOrderLine(data)
             guids = set([s.get('orderLineGuid') for s in data])

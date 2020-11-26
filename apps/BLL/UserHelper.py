@@ -2,8 +2,8 @@
 from pandas import merge
 
 from ..entity.erp.common.AppUserData import AppUserData
-from ..entity.erp.common.CCMast import CCMast
 from ..entity.erp.common.Company import Company
+from ..entity.erp.common.CostCenters import CostCenters
 from ..entity.erp.common.LangMast import lang
 from ..entity.erp.common.UserMast import UserMast
 from ..utils.functions import *
@@ -53,9 +53,9 @@ class UserHelper:
                     dic[s] = tmp
 
             if dataType == '' or dataType == 'costcenter':
-                dic['costcenter'] = CCMast.ShowSites(dic.get('company'),dic.get('costcenter'))
+                dic['costcenter'] = CostCenters.Sites(dic.get('company'),dic.get('costcenter')) # CCMast.ShowSites
             if (dataType == '' or dataType == 'company') and 'company' in types:
-                dic['company'] = CCMast.ShowDB()
+                dic['company'] = CostCenters.Divisions() # CCMast.ShowDB()
 
             return dic
         except Exception as e:

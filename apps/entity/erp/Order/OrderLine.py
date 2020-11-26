@@ -23,3 +23,4 @@ class OrderLine(erp):
     Guid = db.Column(server_default='newid()')
     Status = db.Column(default='Created')
     DeleteTime = db.Column(db.DateTime)
+

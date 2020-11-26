@@ -6,9 +6,13 @@ import math
 import pandas as pd
 
 from flask import abort, jsonify
+from pandas import DataFrame
 
+def getOrderNo():
+    return datetime.datetime.now().strftime('%y%m%d%H%M%S') + str(random.randint(1,10000) + 10000)[1:]
 
 def getGUID():
+    # 修改MAC的值
     s4 = str(uuid.uuid4()).replace('-', '')
     s = s4[random.randint(0,31):][0:12]
     s += s4[0:(12 - len(s))]
@@ -16,6 +20,8 @@ def getGUID():
     return str(uuid.uuid1()).replace('-', '')[0:20] + s
 
 def getdict(obj):
+    if isinstance(obj,DataFrame):
+        return [{k: getVal(v) for k,v in l.items()} for l in obj.to_dict('records')]
     if isinstance(obj,dict):
         return {k:v for k,v in obj.items() if pd.notnull(v)}
     return [{k: getVal(getattr(l, k)) for k in l.keys() if getattr(l, k)} for l in obj]
@@ -30,30 +36,47 @@ def getdict_del(obj):
     return pr
 
 
-
 def getStr(obj):
     if obj == None:
         return ''
 
     return str(obj).strip()
 
-
-def getDate(s):
+# str -> date
+# date -> str
+def getDateTime(d):
     try:
-        if isinstance(s, str):
-            return datetime.date(*map(int, s.split('-')))
-        return s.strftime('%Y-%m-%d')
-        # return datetime.date.strptime(s, '%Y-%m-%d')  # %H:%M:%S')
+        format = ['%Y-%m-%d',' %H',':%M',':%S','.%f']
+        if isinstance(d, datetime.date) and not isinstance(d, datetime.datetime):
+            return d.strftime(''.join(format[:1]))
+
+        if isinstance(d, datetime.datetime):
+            x = len(format)
+            if d.microsecond==0:
+                x = x - 1
+                if d.second==0:
+                    x = x - 1
+                    if d.minute==0:
+                        x = x - 1
+                        if d.hour==0:
+                            return getDateTime(d.date())
+            return d.strftime(''.join(format[:x]))
+
+        for x in range(1,len(format)+1):
+            try:
+                sd = datetime.datetime.strptime(d,''.join(format[:x]))
+                if x == 1:
+                    sd = sd.date()
+                return sd
+            except:
+                pass
     except Exception as e:
         raise e
 
-def getDateTime(s,format=None):
-    try:
-        if not format:
-            format = '%Y-%m-%d %H:%M:%S.%f'
-        return datetime.datetime.strptime(s, format)
-    except Exception as e:
-        raise e
+def getWeekDay(name):
+    weekdays = {'Monday': 0, 'Tuesday': 1, 'Wednesday': 2, 'Thursday': 3, 'Friday': 4, 'Saturday': 5, 'Sunday': 6}
+    return weekdays[name.capitalize()]
+
 
 def getInt(o):
     if getStr(o) == '':
@@ -75,9 +98,8 @@ def getVal(s):
     if isinstance(s,Decimal):
         return float(getNumber(s))
     if isinstance(s,datetime.date):
-        return getDate(s)
-    # if isinstance(s,datetime.date):
-    #     return getDate(s)
+        return getDateTime(s)
+
     return s
 
 def Error(error):

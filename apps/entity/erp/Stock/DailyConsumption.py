@@ -5,7 +5,6 @@ from pandas import merge
 from .Stockout import Stockout
 from ....utils.functions import Error
 from ..common.LangMast import lang
-from ..common.CCMast import CCMast
 from ..Item.ItemMast import ItemMast
 
 class DailyConsumption(Stockout):
@@ -19,9 +18,12 @@ class DailyConsumption(Stockout):
             Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
 
         try:
+            tmp1 = cls.ItemBatchCost(costCenterCode, date)
+            if tmp1.empty:
+                Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
+
             tmp = ItemMast.list(costCenterCode)
-            tmp = merge(cls.ItemBatchCost(costCenterCode, date), tmp,
-                        how='left', left_on='ItemCode', right_on='ItemCode')
+            tmp = merge(tmp1, tmp, how='left', left_on='ItemCode', right_on='ItemCode')
             tmp.fillna('', inplace=True)
             tmp.sort_values(by=['ItemCode', 'TransDate', 'Id'], inplace=True)
             tmp['startQty'] = tmp['EndQty'] - tmp['Qty']

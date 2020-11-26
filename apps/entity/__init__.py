@@ -40,7 +40,7 @@ class BaseModel(db.Model):
                     if isinstance(t,db.Numeric):
                         v = getNumber(v)
                     elif isinstance(t,db.Date):
-                        v = getDate(v)
+                        v = getDateTime(v)
 
             setattr(self, tmpkey, self._wrap(v))
 
@@ -62,7 +62,7 @@ class BaseModel(db.Model):
     '''
 
     def to_dict(self):
-        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        return {c: getattr(self, c) for c in self.__dict__ if not c.startswith('_')} #.name self.__table__.columns}
 
     @classmethod
     def getBind(cls):
