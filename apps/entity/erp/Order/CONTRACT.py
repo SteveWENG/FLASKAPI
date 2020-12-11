@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*
 from sqlalchemy import func
+import pandas as pd
 
 from ...erp.common.LangMast import lang
 from ....utils.functions import *
@@ -25,7 +26,7 @@ class CONTRACT(erp):
 
         qry = cls.query.filter(cls.CostCenterCode==costCenterCode,func.coalesce(cls.StartDate,'2000-1-1')<=date,
                                func.coalesce(cls.EndDate,'2222-12-31')>=date)\
-            .with_entities(cls.LineNum.label('orderLineGuid'),cls.ItemCode.label('itemCode'),
-                           (cls.ItemName+' ' +cls.Description).label('itemName'),
-                           cls.Price.label('itemPrice'),cls.Unit.label('uom')).all()
-        return getdict(qry)
+            .with_entities(cls.LineNum,cls.ItemCode,
+                           (cls.ItemName+' ' +cls.Description).label('ItemName'),
+                           cls.Price,cls.Unit)
+        return pd.read_sql(qry.statement, cls.getBind())

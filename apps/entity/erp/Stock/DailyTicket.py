@@ -15,8 +15,12 @@ class DailyTicket(Stockout):
         if not costCenterCode or not date:
             Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
 
-        return [{**{k: v if k !='orderLineGuid' else getStr(v) for k,v in d.items()},'isServiceItem': True}
-                for d in CONTRACT.list(costCenterCode,date)]
+        df = CONTRACT.list(costCenterCode,date)
+        df['LineNum'] = df['LineNum'].apply(str)
+        df.rename(columns={'LineNum':'orderLineGuid','UnitPrice':'itemPrice','Unit':'uom',
+                           'ItemCode':'itemCode','ItemName':'itemName'},inplace=True)
+
+        return [{**d,'isServiceItem': True} for d in getdict(df)]
 
     @classmethod
     def SaveData(cls, trans, **kw):
