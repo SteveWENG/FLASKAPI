@@ -18,7 +18,7 @@ class OrderLine(erp):
     AdjQty = db.Column(db.Numeric)
     RemainQty = db.Column(db.Numeric)
     Remark = db.Column()
-    CreateTime = db.Column(db.DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now)
+    CreateTime = db.Column(db.DateTime, default=datetime.datetime.now) #, onupdate=datetime.datetime.now)
 
     Guid = db.Column(server_default='newid()')
     Status = db.Column(default='Created')

@@ -4,11 +4,13 @@ from functools import reduce
 from sqlalchemy import func, select, and_, or_, case, distinct
 import pandas as pd
 
+from ..common.Item import Item
+from ..common.CostCenter import CostCenter
+from ..common.Supplier import Supplier
 from ....entity import dblog
 from ....utils.functions import *
 from ...erp import erp, db
 from ..common.LangMast import lang
-
 
 class TransData(erp):
     __tablename__ = 'tblTransData'
@@ -243,3 +245,83 @@ class TransData(erp):
 
         if tmp.GuidCount < tmp.TotalCount:
             Error(lang('9D310041-7713-4C59-B1C0-BF4639B39552')) # Can't save because already saved this order!
+
+
+    #divisions: 120,110
+    #costCenterCodes: 120SKF01,120CAS01
+    @classmethod
+    def list(cls, data):
+        with RunApp():
+            filters = []
+            divisions = getStr(data.get('divisions', ''))
+            costCenterCodes = getStr(data.get('costCenterCodes', ''))
+            if divisions:
+                filters.append(CostCenter.Division.in_(divisions.split(',')))
+            if costCenterCodes:
+                filters.append(cls.CostCenterCode.in_(costCenterCodes.split(',')))
+            if len(filters) == 2:
+                filters = [or_(*filters)]
+
+            openning = getStr(data.get('openning','false'))
+            startDate = getStr(data.get('startDate',''))
+            endDate = getStr(data.get('endDate',''))
+            if endDate:
+                filters.append(cls.TransDate<=endDate)
+
+            dfs = []
+            # Openning
+            if openning.lower()=='true' and startDate:
+                tmp = cls.query.join(Item,cls.ItemCode==Item.ItemCode)\
+                    .join(CostCenter,cls.CostCenterCode==CostCenter.CostCenterCode)\
+                    .outerjoin(Supplier, cls.SupplierCode==Supplier.SupplierCode)\
+                    .filter(*filters, cls.TransDate<startDate)\
+                    .group_by(CostCenter.Division, cls.CostCenterCode,
+                              Item.Category01,Item.Category02,Item.Category03,
+                              cls.ItemCode, cls.ItemName,cls.BatchGuid)\
+                    .having(func.abs(func.round(func.sum(cls.Qty),6))>0)\
+                    .with_entities(CostCenter.Division, cls.CostCenterCode,
+                                   Item.Category01,Item.Category02,Item.Category03,
+                                   cls.ItemCode, cls.ItemName,cls.BatchGuid,
+                                   func.max(cls.SupplierCode).label('SupplierCode'),
+                                   func.max(Supplier.SupplierName).label('SupplierName'),
+                                   func.sum(cls.Qty).label('Qty'),
+                                   func.max(func.coalesce(cls.ItemCost,cls.ItemPrice)).label('Cost'))
+                df1 = pd.read_sql(tmp.statement,cls.getBind())
+                if not df1.empty:
+                    df1['BusinessType'] = 'Openning'
+                    df1['TransDate'] = startDate
+                    dfs.append(df1)
+
+            if startDate:
+                filters.append(cls.TransDate>=startDate)
+
+            tmp = cls.query.join(Item,cls.ItemCode==Item.ItemCode)\
+                .join(CostCenter,cls.CostCenterCode==CostCenter.CostCenterCode)\
+                .outerjoin(Supplier, cls.SupplierCode==Supplier.SupplierCode)\
+                .filter(*filters,func.abs(func.round(cls.Qty,6))>0)\
+                .with_entities(CostCenter.Division, cls.CostCenterCode,
+                               Item.Category01,Item.Category02,Item.Category03, cls.ItemCode, cls.ItemName,
+                               cls.Remark, cls.SupplierCode, Supplier.SupplierName.label('SupplierName'),
+                               cls.TransDate,
+                               cls.BusinessType,cls.BatchGuid,cls.Remark, cls.Qty,
+                               func.coalesce(cls.ItemCost,cls.ItemPrice).label('Cost'))
+
+            df2 = pd.read_sql(tmp.statement,cls.getBind())
+            if not df2.empty:
+                dfs.append(df2)
+
+            if not dfs:
+                Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF')) # No data
+
+            df = dfs[0]
+            if len(dfs) > 1:
+                df = pd.concat(dfs, ignore_index=True);
+
+            tmp = set(df['BusinessType'])
+            if len(tmp) > 1:
+                for f in tmp:
+                    df.loc[df['BusinessType']==f,'Qty'+f] = df['Qty']
+
+            DataFrameSetNan(df)
+            df['Amt'] = round(df['Qty'] * df['Cost'],6)
+            return getdict(df)

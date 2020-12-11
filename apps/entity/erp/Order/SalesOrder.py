@@ -4,7 +4,6 @@ from sqlalchemy import func
 from ....utils.functions import *
 from ...erp import erp, db
 
-
 class SalesOrderHead(erp):
     __tablename__ = 'SalesOrderHead'
 

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-from ..Order.SalesOrder import SalesOrderHead
+from ..Order.CONTRACT import CONTRACT
 from ..common.LangMast import lang
-from ....utils.functions import Error
+from ....utils.functions import *
 from .Stockout import Stockout
 
 class DailyTicket(Stockout):
@@ -15,7 +15,8 @@ class DailyTicket(Stockout):
         if not costCenterCode or not date:
             Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
 
-        return [{**d,'uom':'PCS', 'isServiceItem': True} for d in SalesOrderHead.list(costCenterCode,date)]
+        return [{**{k: v if k !='orderLineGuid' else getStr(v) for k,v in d.items()},'isServiceItem': True}
+                for d in CONTRACT.list(costCenterCode,date)]
 
     @classmethod
     def SaveData(cls, trans, **kw):

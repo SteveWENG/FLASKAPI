@@ -18,3 +18,7 @@ def save():
 @bp.route('/UpdateOpenningStock', methods=['POST'])
 def UpateOpenningStock():
     return webapi(lambda dic: StockHelper.UpdateOpenningStock(dic))
+
+@bp.route('/list', methods=['POST'])
+def list():
+    return webapi(lambda dic: StockHelper.list(dic))

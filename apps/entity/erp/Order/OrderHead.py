@@ -7,7 +7,6 @@ from sqlalchemy import func, and_, or_, literal_column, case, cast
 from sqlalchemy.ext.hybrid import hybrid_property
 
 from .OrderLine import OrderLine
-from ..Item.ItemMast import ItemMast
 from ..Stock import TransData
 from ..common.CCMast import CCMast
 from ..common.DataControlConfig import DataControlConfig
@@ -181,6 +180,7 @@ class OrderHead(erp):
 
         df = merge(df,stock, how='left',left_on='itemCode',right_on='ItemCode')
         df.drop(['ItemCode'],axis=1,inplace=True)
+        df['guid'] = df.apply(lambda x: getGUID(),axis=1)
         DataFrameSetNan(df)
         ret = {'ID':tmp[0].Id,'HeadGuid':tmp[0].HeadGuid,'OrderNo':tmp[0].OrderNo,'AppStatus':tmp[0].AppStatus,'PO':df.to_dict('records')}
 
@@ -259,8 +259,6 @@ class OrderHead(erp):
 
     @classmethod
     def list(cls,headGuid, costCenterCode, date, supplierCode, orderType, appStatus):
-        # .join(CCMast, CCMast.CostCenterCode==costCenterCode) \
-        # .join(ItemMast, and_(OrderLine.ItemCode == ItemMast.ItemCode,CCMast.DBName==ItemMast.Division)) \
         filters = [cls.HeadGuid==headGuid, cls.CostCenterCode == costCenterCode,
                    cls.AppStatus==appStatus,cls.OrderDate == date, cls.Active==True,
                     OrderLine.SupplierCode == supplierCode, OrderLine.RemainQty != 0,
@@ -271,7 +269,6 @@ class OrderHead(erp):
         sql = cls.query.join(OrderLine, cls.HeadGuid == OrderLine.HeadGuid) \
             .filter(*filters)\
             .with_entities(OrderLine.Guid.label('orderLineGuid'),OrderLine.ItemCode.label('itemCode'),
-                           #ItemMast.ItemName.label('itemName'), ItemMast.StockUnit.label('uom'),
                            OrderLine.PurchasePrice.label('purPrice'),
                            OrderLine.CreateTime,
                            OrderLine.PurStk_Conversion.label('purStk_Conversion'),

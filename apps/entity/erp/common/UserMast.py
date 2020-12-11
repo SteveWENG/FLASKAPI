@@ -3,6 +3,8 @@
 from ldap3 import Server, Connection, ALL,NTLM
 
 from config import AD
+from .LangMast import lang
+from ... import dblog, SaveDB
 from ....utils.functions import *
 from ...erp import erp, db
 
@@ -38,3 +40,9 @@ class UserMast(erp):
         except:
             return False
 
+    @classmethod
+    @dblog
+    def ChangePassword(cls, userGuid, password):
+        with SaveDB() as session:
+            if cls.query.filter(cls.Guid==userGuid).update({'Password':password},synchronize_session=False) != 1:
+                Error(lang('826F33D6-A118-4330-A561-BC35B24A5196'))

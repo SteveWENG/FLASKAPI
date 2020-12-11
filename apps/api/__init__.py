@@ -13,4 +13,4 @@ def webapi(func):
             g.LangCode = dic.get('langCode','').upper()
         return {'status': 200, 'data': func(dic)}
     except Exception as e:
-        ErrorExit(e.args if len(e.args) else e.description)
+        abort(jsonify({'status': 500, 'error': e.args if len(e.args) else e.description}))

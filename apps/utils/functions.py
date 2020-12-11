@@ -1,5 +1,6 @@
 import datetime
 import uuid
+from contextlib import contextmanager
 from decimal import Decimal
 import random
 import math
@@ -21,9 +22,10 @@ def getGUID():
 
 def getdict(obj):
     if isinstance(obj,DataFrame):
-        return [{k: getVal(v) for k,v in l.items()} for l in obj.to_dict('records')]
+        return [{k: getVal(v) for k,v in l.items() if v} for l in obj.to_dict('records')]
     if isinstance(obj,dict):
         return {k:v for k,v in obj.items() if pd.notnull(v)}
+
     return [{k: getVal(getattr(l, k)) for k in l.keys() if getattr(l, k)} for l in obj]
 
 def getdict_del(obj):
@@ -102,12 +104,6 @@ def getVal(s):
 
     return s
 
-def Error(error):
-    raise RuntimeError(error)
-
-def ErrorExit(error):
-    abort(jsonify({'status': 500, 'error': error}))
-
 def DataFrameSetNan(df):
     if df.empty:
         return df
@@ -116,3 +112,14 @@ def DataFrameSetNan(df):
         df[s].fillna(0 if s in df.select_dtypes(include='number').columns else '', inplace=True)
 
     return df
+
+def Error(error):
+    raise RuntimeError(error)
+
+
+@contextmanager
+def RunApp():
+    try:
+        yield
+    except Exception as e:
+        raise e

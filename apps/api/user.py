@@ -14,3 +14,7 @@ def login():
 @bp.route('/appdata', methods=['POST'])
 def appdata():
     return webapi(lambda dic: UserHelper.AppData(dic))
+
+@bp.route('/changepassword', methods=['POST'])
+def ChangePassword():
+    return webapi(lambda dic: UserHelper.ChangePassword(dic))

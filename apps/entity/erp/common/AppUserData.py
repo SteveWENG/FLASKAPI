@@ -40,7 +40,7 @@ class AppUserData(erp):
                 .distinct()
 
             dfdata = pd.read_sql(qry.statement, cls.getBind())
-            if len(dfdata) == 1:
+            if dfdata.empty:
                 return dfdata
 
             dfdata['index'] = dfdata['AppGuid'].map(lambda x: [l.get('index') for l in guids if l.get('guid')==x][0])

@@ -2,8 +2,6 @@
 
 from ..entity.erp.Order.OrderHead import OrderHead
 
-
-
 class OrderHelper:
 
     @staticmethod
