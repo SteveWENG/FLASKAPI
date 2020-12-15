@@ -102,7 +102,7 @@ def getVal(s):
     if isinstance(s,datetime.date):
         return getDateTime(s)
 
-    return s
+    return getStr(s)
 
 def DataFrameSetNan(df):
     if df.empty:

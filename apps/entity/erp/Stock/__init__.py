@@ -237,6 +237,7 @@ class TransData(erp):
         # 检查tblTransData中OrderLineGuid重复
         filter = [cls.OrderLineGuid.in_(orderLineGuids)]
         if str(cls).find('DailyTicket.DailyTicket')  > 0:  # 收入一天一个
+            filter.append(cls.CostCenterCode == data[0].get('costCenterCode'))
             filter.append(cls.TransDate == data[0].get('transDate'))
             
         tmp = cls.query.filter(*filter) \
@@ -265,63 +266,59 @@ class TransData(erp):
             openning = getStr(data.get('openning','false'))
             startDate = getStr(data.get('startDate',''))
             endDate = getStr(data.get('endDate',''))
+            pageIndex = getInt(data.get('pageIndex')) # 0 不分页
+            pageSize = getInt(data.get('pageSize'))
+
+            fields = [CostCenter.Division, cls.CostCenterCode, Item.Category01,
+                      Item.Category02,Item.Category03,cls.ItemCode, cls.ItemName]
+            qry = cls.query.join(CostCenter,cls.CostCenterCode==CostCenter.CostCenterCode)
+            ret = []
+            # Openning,
+            if openning.lower()=='true' and startDate:
+                qry = qry.join(Item, cls.ItemCode == Item.ItemCode)
+
+                if pageIndex < 2 or pageSize == 0: #不分页或第一页显示
+                    tmp= qry.filter(*filters, cls.TransDate<startDate)\
+                        .group_by(*fields)\
+                        .having(func.abs(func.round(func.sum(cls.Qty),6))>0)\
+                        .with_entities(*fields,
+                                       func.round(func.sum(cls.Qty),6).label('Qty'),
+                                       func.round(func.sum(cls.Qty*cls.ItemCost),6).label('Amt'))\
+                        .order_by(CostCenter.Division, cls.CostCenterCode,cls.ItemCode).all()
+
+                    if tmp:
+                        ret = [{**{k: getVal(getattr(l, k)) for k in l.keys()
+                                   if getattr(l, k)},
+                                   'SupplierCode':'','Remark':'',
+                                'BusinessType':'Openning','TransDate':startDate,
+                                'Cost':getVal(round(l.Amt/l.Qty,6))}
+                               for l in tmp]
+            else:
+                qry = qry.outerjoin(Item,cls.ItemCode==Item.ItemCode)
+
             if endDate:
                 filters.append(cls.TransDate<=endDate)
-
-            dfs = []
-            # Openning
-            if openning.lower()=='true' and startDate:
-                tmp = cls.query.join(Item,cls.ItemCode==Item.ItemCode)\
-                    .join(CostCenter,cls.CostCenterCode==CostCenter.CostCenterCode)\
-                    .outerjoin(Supplier, cls.SupplierCode==Supplier.SupplierCode)\
-                    .filter(*filters, cls.TransDate<startDate)\
-                    .group_by(CostCenter.Division, cls.CostCenterCode,
-                              Item.Category01,Item.Category02,Item.Category03,
-                              cls.ItemCode, cls.ItemName,cls.BatchGuid)\
-                    .having(func.abs(func.round(func.sum(cls.Qty),6))>0)\
-                    .with_entities(CostCenter.Division, cls.CostCenterCode,
-                                   Item.Category01,Item.Category02,Item.Category03,
-                                   cls.ItemCode, cls.ItemName,cls.BatchGuid,
-                                   func.max(cls.SupplierCode).label('SupplierCode'),
-                                   func.max(Supplier.SupplierName).label('SupplierName'),
-                                   func.sum(cls.Qty).label('Qty'),
-                                   func.max(func.coalesce(cls.ItemCost,cls.ItemPrice)).label('Cost'))
-                df1 = pd.read_sql(tmp.statement,cls.getBind())
-                if not df1.empty:
-                    df1['BusinessType'] = 'Openning'
-                    df1['TransDate'] = startDate
-                    dfs.append(df1)
-
             if startDate:
                 filters.append(cls.TransDate>=startDate)
 
-            tmp = cls.query.join(Item,cls.ItemCode==Item.ItemCode)\
-                .join(CostCenter,cls.CostCenterCode==CostCenter.CostCenterCode)\
-                .outerjoin(Supplier, cls.SupplierCode==Supplier.SupplierCode)\
+            tmp = qry.outerjoin(Supplier, and_(CostCenter.Division==Supplier.Division,
+                                               cls.SupplierCode==Supplier.SupplierCode))\
                 .filter(*filters,func.abs(func.round(cls.Qty,6))>0)\
-                .with_entities(CostCenter.Division, cls.CostCenterCode,
-                               Item.Category01,Item.Category02,Item.Category03, cls.ItemCode, cls.ItemName,
-                               cls.Remark, cls.SupplierCode, Supplier.SupplierName.label('SupplierName'),
-                               cls.TransDate,
+                .with_entities(*fields,cls.Remark, cls.TransDate,
+                               cls.SupplierCode, Supplier.SupplierName.label('SupplierName'),
                                cls.BusinessType,cls.BatchGuid,cls.Remark, cls.Qty,
-                               func.coalesce(cls.ItemCost,cls.ItemPrice).label('Cost'))
+                               func.coalesce(cls.ItemCost,cls.ItemPrice).label('Cost'))\
+                .order_by(CostCenter.Division, cls.CostCenterCode,cls.TransDate,cls.Id,cls.ItemCode)
+            if pageIndex > 0 and pageSize > 0:
+                tmp = tmp.slice((pageIndex-1)*pageSize,pageIndex*pageSize)
+            tmp = tmp.all()
 
-            df2 = pd.read_sql(tmp.statement,cls.getBind())
-            if not df2.empty:
-                dfs.append(df2)
+            if tmp:
+                ret = ret + [{**{k: getVal(getattr(l, k)) for k in l.keys()
+                                 if k =='Remark' or getattr(l, k)},
+                              'Amt':getVal(round(l.Cost * l.Qty,6))} for l in tmp]
 
-            if not dfs:
-                Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF')) # No data
+            if not ret and (pageIndex < 2 or pageSize == 0): # 不分页或第一页时
+                    Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF')) # No data
 
-            df = dfs[0]
-            if len(dfs) > 1:
-                df = pd.concat(dfs, ignore_index=True);
-
-            tmp = set(df['BusinessType'])
-            if len(tmp) > 1:
-                for f in tmp:
-                    df.loc[df['BusinessType']==f,'Qty'+f] = df['Qty']
-
-            DataFrameSetNan(df)
-            df['Amt'] = round(df['Qty'] * df['Cost'],6)
-            return getdict(df)
+            return ret

@@ -86,9 +86,6 @@ class OrderHead(erp):
     def getEarliestDays(cls, costCenterCode):
         return getInt(cls.getConfigs(costCenterCode, 'PO', 'EarliestDays', 'Val3'))
 
-
-
-
     # NoFood:
     # Food: 补单，普通单
     @classmethod
@@ -158,7 +155,7 @@ class OrderHead(erp):
 
         # 新增
         if not headGuid and len(tmp) == 0:
-            ret = {'ID':0, 'OrderNo':'PO'+getOrderNo()}
+            ret = {'ID':0, 'OrderNo':DataControlConfig.getPONumber()}
             deadline = cls.getFoodPODeadLine(orderType,orderSubType,costCenterCode, orderDate)
             if deadline: ret['DeadLine'] = deadline
 
@@ -218,7 +215,6 @@ class OrderHead(erp):
                 self.lines = [OrderLine(getdict(l),True) for l in dflines.to_dict(orient='records')]
 
             with SaveDB() as session:
-
                 # 已入库，不能修改（不分供应商）
                 if OrderLine.query.filter(OrderLine.HeadGuid==self.HeadGuid,
                                           func.abs(func.round(OrderLine.Qty
