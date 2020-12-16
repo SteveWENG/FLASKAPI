@@ -13,6 +13,7 @@ class DataControlConfig(erp):
     __tablename__ = 'tblDataControlConfig'
 
     Type = db.Column()
+    Guid = db.Column()
     Val1 = db.Column()
     Val2 = db.Column()
     Val3 = db.Column()
@@ -40,11 +41,11 @@ class DataControlConfig(erp):
     def getPONumber(cls):
         ym = datetime.date.today().strftime('%y%m')
         with SaveDB() as session:
-            qry = session.query(cls).filter(func.coalesce(cls.Val2, '')=='0B1ADC15-6217-4FE6-8C9A-A55BA0228BBA')
-            qry.update({'Val4': case([(func.coalesce(cls.Val3,'')==ym,
-                                       func.coalesce(cls.Val4,0)+1)],
+            qry = session.query(cls).filter(func.coalesce(cls.Guid, '')=='0B1ADC15-6217-4FE6-8C9A-A55BA0228BBA')
+            qry.update({'Val3': case([(func.coalesce(cls.Val2,'')==ym,
+                                       func.coalesce(cls.Val3,0)+1)],
                                      else_=1),
-                         'Val3':ym},synchronize_session=False)
-            tmp = qry.with_entities(cls.Val4).first().Val4
+                         'Val2':ym},synchronize_session=False)
+            tmp = qry.with_entities(cls.Val3).first().Val3
 
             return 'PO%s' %(getInt(ym) * 100000 + getInt(tmp))

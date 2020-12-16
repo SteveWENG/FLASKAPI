@@ -167,21 +167,23 @@ class OrderHead(erp):
         if len(tmp) > 1:
             Error('find many po')
 
+        ret = {'ID': tmp[0].Id, 'HeadGuid': tmp[0].HeadGuid, 'OrderNo': tmp[0].OrderNo,
+               'AppStatus': tmp[0].AppStatus}
 
-        tt = [{k[0].lower()+k[1:]:getVal(v) for k,v in l.to_dict().items()
-               if k.lower() not in ['headguid','deletetime','createtime','guid','remainqty','qrcode']}
-              for l in tmp[0].lines]
-        df = pd.DataFrame(tt)
-        DataFrameSetNan(df)
+        if tmp[0].lines:
+            tt = [{k[0].lower()+k[1:]:getVal(v) for k,v in l.to_dict().items()
+                   if k.lower() not in ['headguid','deletetime','createtime','guid','remainqty','qrcode']}
+                  for l in tmp[0].lines]
+            df = pd.DataFrame(tt)
+            DataFrameSetNan(df)
 
-        stock = TransData.ItemStock(costCenterCode,getDateTime(orderDate))
+            stock = TransData.ItemStock(costCenterCode,getDateTime(orderDate))
 
-        df = merge(df,stock, how='left',left_on='itemCode',right_on='ItemCode')
-        df.drop(['ItemCode'],axis=1,inplace=True)
-        df['guid'] = df.apply(lambda x: getGUID(),axis=1)
-        DataFrameSetNan(df)
-        ret = {'ID':tmp[0].Id,'HeadGuid':tmp[0].HeadGuid,'OrderNo':tmp[0].OrderNo,
-               'AppStatus':tmp[0].AppStatus,'PO':df.to_dict('records')}
+            df = merge(df,stock, how='left',left_on='itemCode',right_on='ItemCode')
+            df.drop(['ItemCode'],axis=1,inplace=True)
+            df['guid'] = df.apply(lambda x: getGUID(),axis=1)
+            DataFrameSetNan(df)
+            ret = {**ret,'PO':df.to_dict('records')}
 
         deadline = cls.getFoodPODeadLine(orderType,orderSubType,costCenterCode, orderDate)
         if deadline:
