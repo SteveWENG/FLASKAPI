@@ -1,3 +1,4 @@
+
 from flask import g
 from flask_restful import request
 
@@ -13,4 +14,5 @@ def webapi(func):
             g.LangCode = dic.get('langCode','').upper()
         return {'status': 200, 'data': func(dic)}
     except Exception as e:
-        abort(jsonify({'status': 500, 'error': e.args if len(e.args) else e.description}))
+        # abort(jsonify({'status': 500, 'error': e.args if len(e.args) else e.description}))
+        return {'status': 500, 'error': e.args if len(e.args) else e.description}

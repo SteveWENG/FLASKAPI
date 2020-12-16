@@ -11,6 +11,7 @@ from ..Stock import TransData
 from ..common.CCMast import CCMast
 from ..common.DataControlConfig import DataControlConfig
 from ..common.LangMast import lang
+from ....utils.QRCode import QRCodeBytes
 from ....utils.functions import *
 from ...erp import erp, db
 from .OrderLine import OrderLine
@@ -168,7 +169,7 @@ class OrderHead(erp):
 
 
         tt = [{k[0].lower()+k[1:]:getVal(v) for k,v in l.to_dict().items()
-               if k.lower() not in ['headguid','deletetime','createtime','guid','remainqty']}
+               if k.lower() not in ['headguid','deletetime','createtime','guid','remainqty','qrcode']}
               for l in tmp[0].lines]
         df = pd.DataFrame(tt)
         DataFrameSetNan(df)
@@ -179,7 +180,8 @@ class OrderHead(erp):
         df.drop(['ItemCode'],axis=1,inplace=True)
         df['guid'] = df.apply(lambda x: getGUID(),axis=1)
         DataFrameSetNan(df)
-        ret = {'ID':tmp[0].Id,'HeadGuid':tmp[0].HeadGuid,'OrderNo':tmp[0].OrderNo,'AppStatus':tmp[0].AppStatus,'PO':df.to_dict('records')}
+        ret = {'ID':tmp[0].Id,'HeadGuid':tmp[0].HeadGuid,'OrderNo':tmp[0].OrderNo,
+               'AppStatus':tmp[0].AppStatus,'PO':df.to_dict('records')}
 
         deadline = cls.getFoodPODeadLine(orderType,orderSubType,costCenterCode, orderDate)
         if deadline:
@@ -188,7 +190,7 @@ class OrderHead(erp):
 
     @dblog
     def save(self,data):
-        try:
+        with RunApp():
             # Food order存盘状态是submitted
             if self.AppStatus.lower() == 'new' and self.OrderType.lower() == 'food':
                 self.AppStatus = 'submitted'
@@ -211,8 +213,11 @@ class OrderHead(erp):
                 DataFrameSetNan(dflines)
                 dflines['remainQty'] = dflines.apply(lambda x: getNumber(x['adjQty'])+getNumber(x['qty']),  axis=1)
                 # 0订单
-                # dflines = dflines[(dflines['remainQty'] !=0)|(dflines['qty'] !=0)]
-                self.lines = [OrderLine(getdict(l),True) for l in dflines.to_dict(orient='records')]
+                dflines = dflines[(dflines['remainQty'] !=0)|(dflines['qty'] !=0)]
+                self.lines = [OrderLine({**getdict(l),
+                                        'QRCode':QRCodeBytes('%s,%s' %(self.HeadGuid,l.get('supplierCode')))},
+                                        True) for l in dflines.to_dict(orient='records')]
+                # self.lines = [OrderLine(getdict(l),True) for l in dflines.to_dict(orient='records')]
 
             with SaveDB() as session:
                 # 已入库，不能修改（不分供应商）
@@ -249,9 +254,6 @@ class OrderHead(erp):
             return lang('A16AAA03-DCE8-4936-9D9E-FE23F9AE7378'
                         if self.AppStatus.lower() == 'new'
                         else '9CE7707A-A7B6-49C7-A8ED-A9A505B286A1')
-        except Exception as e:
-            raise e
-
 
     @classmethod
     def list(cls,headGuid, costCenterCode, date, supplierCode, orderType, appStatus):

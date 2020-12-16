@@ -4,9 +4,8 @@ from contextlib import contextmanager
 from decimal import Decimal
 import random
 import math
-import pandas as pd
 
-from flask import abort, jsonify
+import pandas as pd
 from pandas import DataFrame
 
 def getOrderNo():
@@ -97,12 +96,16 @@ def getNumber(d):
 def getVal(s):
     if isinstance(s,str):
         return getStr(s)
+    if isinstance(s,int):
+        return getInt(s)
     if isinstance(s,Decimal):
         return float(getNumber(s))
     if isinstance(s,datetime.date):
         return getDateTime(s)
+    if s == None:
+        return getStr(s)
 
-    return getStr(s)
+    return s
 
 def DataFrameSetNan(df):
     if df.empty:
@@ -115,7 +118,6 @@ def DataFrameSetNan(df):
 
 def Error(error):
     raise RuntimeError(error)
-
 
 @contextmanager
 def RunApp():
