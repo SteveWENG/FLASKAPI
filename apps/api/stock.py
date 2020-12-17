@@ -22,3 +22,7 @@ def UpateOpenningStock():
 @bp.route('/list', methods=['POST'])
 def list():
     return webapi(lambda dic: StockHelper.list(dic))
+
+@bp.route('/columns', methods=['POST'])
+def columns():
+    return webapi(lambda dic: StockHelper.columns(dic))

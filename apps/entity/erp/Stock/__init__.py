@@ -3,6 +3,7 @@
 from functools import reduce
 from sqlalchemy import func, select, and_, or_, case, distinct
 import pandas as pd
+import copy
 
 from ..common.Item import Item
 from ..common.CostCenter import CostCenter
@@ -235,12 +236,12 @@ class TransData(erp):
                 return
 
         # 检查tblTransData中OrderLineGuid重复
-        filter = [cls.OrderLineGuid.in_(orderLineGuids)]
+        filters = [cls.OrderLineGuid.in_(orderLineGuids)]
         if str(cls).find('DailyTicket.DailyTicket')  > 0:  # 收入一天一个
-            filter.append(cls.CostCenterCode == data[0].get('costCenterCode'))
-            filter.append(cls.TransDate == data[0].get('transDate'))
+            filters.append(cls.CostCenterCode == data[0].get('costCenterCode'))
+            filters.append(cls.TransDate == data[0].get('transDate'))
             
-        tmp = cls.query.filter(*filter) \
+        tmp = cls.query.filter(*filters) \
             .with_entities(func.count(distinct(cls.OrderLineGuid)).label('GuidCount'),  # 全部save
                            func.count(cls.Id).label('TotalCount')).first()  # 重复save
 
@@ -248,8 +249,9 @@ class TransData(erp):
             Error(lang('9D310041-7713-4C59-B1C0-BF4639B39552')) # Can't save because already saved this order!
 
 
-    #divisions: 120,110
-    #costCenterCodes: 120SKF01,120CAS01
+    # divisions: 120,110
+    # costCenterCodes: 120SKF01,120CAS01
+    # type detail, batch
     @classmethod
     def list(cls, data):
         with RunApp():
@@ -262,63 +264,102 @@ class TransData(erp):
                 filters.append(cls.CostCenterCode.in_(costCenterCodes.split(',')))
             if len(filters) == 2:
                 filters = [or_(*filters)]
+            filters.append(func.round(cls.Qty, 6) != 0)
 
-            openning = getStr(data.get('openning','false'))
+            openning = getStr(data.get('openning','false')).lower() == 'true'
             startDate = getStr(data.get('startDate',''))
             endDate = getStr(data.get('endDate',''))
-            pageIndex = getInt(data.get('pageIndex')) # 0 不分页
-            pageSize = getInt(data.get('pageSize'))
+            type = data.get('type','detail').lower()
+            if type == 'batch':
+                openning = True
+            elif type == 'dailyporeceipt':
+                openning = False
+                filters.append(cls.BusinessType=='POReceipt')
 
-            fields = [CostCenter.Division, cls.CostCenterCode, Item.Category01,
-                      Item.Category02,Item.Category03,cls.ItemCode, cls.ItemName]
-            qry = cls.query.join(CostCenter,cls.CostCenterCode==CostCenter.CostCenterCode)
-            ret = []
-            # Openning,
-            if openning.lower()=='true' and startDate:
-                qry = qry.join(Item, cls.ItemCode == Item.ItemCode)
+            if not startDate: startDate = endDate if endDate else datetime.date.today()
+            if not endDate: endDate = startDate
 
-                if pageIndex < 2 or pageSize == 0: #不分页或第一页显示
-                    tmp= qry.filter(*filters, cls.TransDate<startDate)\
-                        .group_by(*fields)\
-                        .having(func.abs(func.round(func.sum(cls.Qty),6))>0)\
-                        .with_entities(*fields,
-                                       func.round(func.sum(cls.Qty),6).label('Qty'),
-                                       func.round(func.sum(cls.Qty*cls.ItemCost),6).label('Amt'))\
-                        .order_by(CostCenter.Division, cls.CostCenterCode,cls.ItemCode).all()
+            df = pd.DataFrame([])
+            df1 = cls._list(filters.copy(),startDate,'',openning,type)
+            if not df1.empty:
+                if type == 'batch':
+                    df1.rename(columns={'Qty':'QtyOpenning','Amt':'AmtOpenning'}, inplace=True)
+                df = df.append(df1)
+            df2 = cls._list(filters, startDate, endDate, openning, type)
+            if not df2.empty:
+                if type == 'batch':
+                    df2.loc[df2['Qty']>0,'QtyIn'] = df2['Qty']
+                    df2.loc[df2['Qty']<0, 'QtyOut'] = df2['Qty']
+                    df2.loc[df2['Qty'] > 0, 'AmtIn'] = df2['Amt']
+                    df2.loc[df2['Qty'] < 0, 'AmtOut'] = df2['Amt']
+                df = df.append(df2)
 
-                    if tmp:
-                        ret = [{**{k: getVal(getattr(l, k)) for k in l.keys()
-                                   if getattr(l, k)},
-                                   'SupplierCode':'','Remark':'',
-                                'BusinessType':'Openning','TransDate':startDate,
-                                'Cost':getVal(round(l.Amt/l.Qty,6))}
-                               for l in tmp]
-            else:
-                qry = qry.outerjoin(Item,cls.ItemCode==Item.ItemCode)
+            if df.empty:
+                Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))
 
-            if endDate:
-                filters.append(cls.TransDate<=endDate)
-            if startDate:
-                filters.append(cls.TransDate>=startDate)
+            DataFrameSetNan(df)
+            return [{**{k: getVal(v) for k,v in l.items()
+                     if k.lower() not in ['suppliercode','suppliername','remark'] and  v},
+                    'SupplierCode':l.get('SupplierCode',''),'SupplierName':l.get('SupplierName',''),
+                     'Remark':l.get('Remark','')}
+                    for l in df.to_dict('records')]
 
-            tmp = qry.outerjoin(Supplier, and_(CostCenter.Division==Supplier.Division,
-                                               cls.SupplierCode==Supplier.SupplierCode))\
-                .filter(*filters,func.abs(func.round(cls.Qty,6))>0)\
-                .with_entities(*fields,cls.Remark, cls.TransDate,
-                               cls.SupplierCode, Supplier.SupplierName.label('SupplierName'),
-                               cls.BusinessType,cls.BatchGuid,cls.Remark, cls.Qty,
-                               func.coalesce(cls.ItemCost,cls.ItemPrice).label('Cost'))\
-                .order_by(CostCenter.Division, cls.CostCenterCode,cls.TransDate,cls.Id,cls.ItemCode)
-            if pageIndex > 0 and pageSize > 0:
-                tmp = tmp.slice((pageIndex-1)*pageSize,pageIndex*pageSize)
-            tmp = tmp.all()
+    # 期初：startDate, openning,type
+    # 明细： startDate, endDate, openning, type
+    @classmethod
+    def _list(cls, filters, startDate, endDate='', openning=True, type='detail'):
+        if not openning and not endDate and type in ['detail','dailyporeceipt']:
+            return pd.DataFrame([])
 
-            if tmp:
-                ret = ret + [{**{k: getVal(getattr(l, k)) for k in l.keys()
-                                 if k =='Remark' or getattr(l, k)},
-                              'Amt':getVal(round(l.Cost * l.Qty,6))} for l in tmp]
+        qry = cls.query.join(CostCenter, cls.CostCenterCode == CostCenter.CostCenterCode)
 
-            if not ret and (pageIndex < 2 or pageSize == 0): # 不分页或第一页时
-                    Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF')) # No data
+        fields = [CostCenter.Division, cls.CostCenterCode, Item.Category01,
+                  Item.Category02, Item.Category03,Item.Category04, cls.ItemCode, cls.ItemName]
+        sumfields = []
+        if not endDate: #现在查询期初
+            sumfields = sumfields + [func.round(func.sum(cls.Qty), 6).label('Qty'),
+                                     func.round(func.sum(cls.Qty * cls.ItemCost), 6).label('Amt')]
+            if type == 'batch': # 现在查询期初而且batch
+                sumfields = sumfields + [func.max(cls.SupplierCode).label('SupplierCode'),
+                                         func.max(Supplier.SupplierName).label('SupplierName')]
+        if type == 'batch':
+            fields.append(cls.BatchGuid)
 
-            return ret
+        if openning or type in ['batch','dailyporeceipt']: # 需要期初或batch
+            qry = qry.join(Item, cls.ItemCode == Item.ItemCode)
+        else:
+            qry = qry.outerjoin(Item, cls.ItemCode == Item.ItemCode)
+
+        if type == 'dailyporeceipt':
+            qry = qry.join(Supplier, and_(CostCenter.Division == Supplier.Division,
+                                               cls.SupplierCode == Supplier.SupplierCode))
+        elif type == 'batch' or endDate: # 现在查询batch，或明细
+            qry = qry.outerjoin(Supplier, and_(CostCenter.Division == Supplier.Division,
+                                               cls.SupplierCode == Supplier.SupplierCode))
+
+        if endDate: # 现在查询明细
+            filters = filters + [cls.TransDate>=startDate, cls.TransDate<=endDate]
+            fields = fields + [cls.SupplierCode, Supplier.SupplierName.label('SupplierName'),
+                               cls.Remark, cls.TransDate,cls.BusinessType, cls.Qty,
+                               func.coalesce(cls.ItemCost,cls.ItemPrice).label('Cost')]
+        else: # 现在查询期初
+            filters.append(cls.TransDate<startDate)
+
+        qry = qry.filter(*filters)
+        if not endDate:
+            qry = qry.group_by(*fields).having(func.round(func.sum(cls.Qty),6)!=0)
+
+        qry = qry.with_entities(*fields,*sumfields)
+        qry = pd.read_sql(qry.statement,cls.getBind())
+
+        if qry.empty:
+            return qry
+
+        if endDate:
+            qry['Amt'] = round(qry['Qty'] * qry['Cost'],6)
+        else: #期初
+            qry['TransDate'] = startDate
+            qry['BusinessType'] = 'Openning'
+            qry['Cost'] = round(qry['Amt'] / qry['Qty'])
+
+        return qry

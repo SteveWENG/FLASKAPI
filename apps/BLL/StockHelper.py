@@ -10,6 +10,7 @@ from ..entity.erp.Stock import TransData
 from ..entity.erp.common.Apps import Apps
 from ..entity.erp.common.CCMast import CCMast
 from ..entity.erp.common.CostCenter import CostCenter
+from ..entity.erp.common.DataControlConfig import DataControlConfig
 from ..utils.functions import *
 
 
@@ -85,3 +86,8 @@ class StockHelper:
     def list(data):
         with RunApp():
             return TransData.list(data);
+
+    @staticmethod
+    def columns(data):
+        with RunApp():
+            return DataControlConfig.StockReportCols(data)

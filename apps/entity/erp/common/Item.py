@@ -10,3 +10,4 @@ class Item(erp):
     Category01 = db.Column()
     Category02 = db.Column()
     Category03 = db.Column()
+    Category04 = db.Column()

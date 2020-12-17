@@ -20,6 +20,8 @@ class DataControlConfig(erp):
     Val4 = db.Column()
     Val5 = db.Column()
     Val6 = db.Column()
+    Val7 = db.Column()
+    SortName = db.Column()
     StartDate = db.Column(db.Date)
     EndDate = db.Column(db.Date)
 
@@ -49,3 +51,34 @@ class DataControlConfig(erp):
             tmp = qry.with_entities(cls.Val3).first().Val3
 
             return 'PO%s' %(getInt(ym) * 100000 + getInt(tmp))
+
+    @classmethod
+    def StockReportCols(cls,data):
+        type = data.get('type','detail').lower()
+        today = datetime.date.today()
+        tmp = cls.query.filter(cls.Type=='StockReport',func.coalesce(cls.Val1,type).like('%'+type+'%'),
+                               func.coalesce(cls.StartDate,'2000-1-1')<=today,
+                               func.coalesce(cls.EndDate,'2222-12-31')>=today)\
+            .with_entities(cls.Val2.label('value'),cls.Val3.label('label'),cls.Val4.label('children'),
+                           cls.Val5.label('group'),cls.Val6.label('width'),cls.Val7.label('checked'))\
+            .order_by(cls.SortName).all()
+
+        ret = {'columns': [{**{k: getVal(getattr(l, k)).split(',') if k=='children' else
+                                    (getVal(getattr(l, k))=='true' if k=='checked' else getVal(getattr(l, k)))
+                                for k in l.keys() if getattr(l, k)},
+                             **({'sortIndex':'','sortBy':'', 'search':''}
+                                if getStr(l.checked)!='' else {})}
+                            for l in tmp if l.value != 'OpenningOfReportParameter']}
+        tmp = [l for l in tmp if l.value == 'OpenningOfReportParameter']
+        if tmp:
+            tmp = tmp[0]
+            dic = {}
+            if tmp.label: # default value
+                dic['value'] = tmp.label=='true'
+            if tmp.children: # 显示
+                dic['show'] = True
+
+            if dic:
+                ret['openning'] = dic
+
+        return ret
