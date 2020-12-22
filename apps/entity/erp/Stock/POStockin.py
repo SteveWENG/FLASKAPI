@@ -4,12 +4,12 @@ from pandas import merge
 import pandas as pd
 from sqlalchemy import func
 
-from ..Item.ItemMast import ItemMast
 from ..Order.OrderHead import OrderHead
 from ..Order.OrderLine import OrderLine
 from ....utils.functions import *
 from .Stockin import Stockin
 from ..common.LangMast import lang
+from ..common.Item import Item
 
 
 class POStockin(Stockin):
@@ -29,7 +29,7 @@ class POStockin(Stockin):
         if tmp1.empty:
             Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
 
-        tmp2 = ItemMast.list(costCenterCode)[['ItemCode','ItemName','Stock_Unit']]
+        tmp2 = Item.list() # ItemMast.list(costCenterCode)[['ItemCode','ItemName','Stock_Unit']]
         tmp1 = merge(tmp1,tmp2,left_on='itemCode',right_on='ItemCode')
         tmp1.rename(columns={'ItemName':'itemName','Stock_Unit':'uom','CreateTime': 'orderLineCreateTime'}, inplace=True)
         tmp1['stockQty'] = tmp1['qty'] * 1.1
@@ -68,12 +68,13 @@ class POStockin(Stockin):
                 Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF')) # No PO lines to save
             '''
 
-            cls.CheckOrderLine(data)
+            cls.CheckOrderLine(data,**kw)
             guids = set([s.get('orderLineGuid') for s in data])
 
             # 更新POlines中的剩余数量=0，并检查入库的记录数与更新剩余数量的记录数是否一致
             createTime = getDateTime(kw.get('orderLineCreateTime')) + datetime.timedelta(seconds=1)
-            if OrderLine.query.filter(OrderLine.Guid.in_(guids), OrderLine.RemainQty==OrderLine.Qty,
+            session = kw.get('session')
+            if session.query(OrderLine).filter(OrderLine.Guid.in_(guids), OrderLine.RemainQty==OrderLine.Qty,
                                       OrderLine.CreateTime<createTime,
                                       func.lower(OrderLine.Status)=='created',OrderLine.DeleteTime == None) \
                 .update({'RemainQty':0 },synchronize_session=False) < len(guids) :

@@ -56,29 +56,45 @@ class DataControlConfig(erp):
     def StockReportCols(cls,data):
         type = data.get('type','detail').lower()
         today = datetime.date.today()
-        tmp = cls.query.filter(cls.Type=='StockReport',func.coalesce(cls.Val1,type).like('%'+type+'%'),
+        tmp = cls.query.filter(cls.Type=='StockReport',func.coalesce(cls.Val1,'').like('%'+type+'%'),
                                func.coalesce(cls.StartDate,'2000-1-1')<=today,
                                func.coalesce(cls.EndDate,'2222-12-31')>=today)\
-            .with_entities(cls.Val2.label('value'),cls.Val3.label('label'),cls.Val4.label('children'),
-                           cls.Val5.label('group'),cls.Val6.label('width'),cls.Val7.label('checked'))\
-            .order_by(cls.SortName).all()
+            .with_entities(cls.Val2,cls.Val3,cls.Val4,cls.Val5,cls.Val6,cls.Val7)\
+            .order_by(cls.SortName)
 
-        ret = {'columns': [{**{k: getVal(getattr(l, k)).split(',') if k=='children' else
-                                    (getVal(getattr(l, k))=='true' if k=='checked' else getVal(getattr(l, k)))
-                                for k in l.keys() if getattr(l, k)},
-                             **({'sortIndex':'','sortBy':'', 'search':''}
-                                if getStr(l.checked)!='' else {})}
-                            for l in tmp if l.value != 'OpenningOfReportParameter']}
-        tmp = [l for l in tmp if l.value == 'OpenningOfReportParameter']
-        if tmp:
-            tmp = tmp[0]
+        tmp = pd.read_sql(tmp.statement,cls.getBind())
+        if tmp.empty:
+            Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))
+
+        ret = {}
+
+        # Openning
+        qry = tmp[tmp['Val2']== 'OpenningOfReportParameter']
+        if not qry.empty:
             dic = {}
-            if tmp.label: # default value
-                dic['value'] = tmp.label=='true'
-            if tmp.children: # 显示
-                dic['show'] = True
+            s = qry.iloc[0]['Val3']
+            if s: dic['value'] = s=='true'
 
-            if dic:
-                ret['openning'] = dic
+            s = qry.iloc[0]['Val4']
+            if s: dic['show'] = True
+
+            if dic: ret['openning'] = dic
+
+        # columns
+        qry = tmp[tmp['Val2'] != 'OpenningOfReportParameter']
+        if qry.empty: return ret
+
+        qry.rename(columns={'Val2':'value','Val3':'label','Val4':'children',
+                            'Val5':'group','Val6':'width'},inplace=True)
+        qry.loc[~qry['Val7'].isna(),'checked'] = qry['Val7'] == 'true'
+        qry.drop(['Val7'],axis=1,inplace=True)
+
+        if not qry[qry.apply(lambda x: ';' in x['value'],axis=1)].empty:
+            qry['values'] = qry.apply(lambda x: [eval(l) for l in x['value'].split(';')]
+                                                if ';' in getStr(x['value']) else '', axis=1)
+            qry['value'] = qry.apply(lambda x: ''  if ';' in getStr(x['value']) else x['value'], axis=1)
+
+        DataFrameSetNan(qry)
+        ret['columns'] = getdict(qry)
 
         return ret

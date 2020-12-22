@@ -3,7 +3,7 @@
 from functools import reduce
 from sqlalchemy import func, select, and_, or_, case, distinct
 import pandas as pd
-import copy
+from pandas import merge
 
 from ..common.Item import Item
 from ..common.CostCenter import CostCenter
@@ -146,7 +146,8 @@ class TransData(erp):
             with cls.adds([l for l in li if abs(round(l.get('qty',0),6)) > 0]) as session:
                 # 存后数据检查
                 if hasattr(cls, 'save_check'):
-                    return cls.save_check(li,itemCodes=itemcodes,orderLineCreateTime=data.get('orderLineCreateTime',''))
+                    return cls.save_check(li,session=session, itemCodes=itemcodes,
+                                          orderLineCreateTime=data.get('orderLineCreateTime',''))
 
             return lang('F7083ED1-26B3-4BD2-82FD-976C401D4CC0') # Successfully saved stock transactions
         except Exception as e:
@@ -226,7 +227,7 @@ class TransData(erp):
     # 采购入库，一条采购行只能入一次
     # 收入，一条销售行可以多次出库
     @classmethod
-    def CheckOrderLine(cls, data):
+    def CheckOrderLine(cls, data, **kw):
         orderLineGuids = [l.get('orderLineGuid') for l in data
                           if l.get('orderLineGuid', '') != '' and abs(round(l.get('qty',0),6))>0]
         if not orderLineGuids:
@@ -240,8 +241,9 @@ class TransData(erp):
         if str(cls).find('DailyTicket.DailyTicket')  > 0:  # 收入一天一个
             filters.append(cls.CostCenterCode == data[0].get('costCenterCode'))
             filters.append(cls.TransDate == data[0].get('transDate'))
-            
-        tmp = cls.query.filter(*filters) \
+
+        session = kw.get('session')
+        tmp = session.query(cls).filter(*filters) \
             .with_entities(func.count(distinct(cls.OrderLineGuid)).label('GuidCount'),  # 全部save
                            func.count(cls.Id).label('TotalCount')).first()  # 重复save
 
@@ -281,25 +283,28 @@ class TransData(erp):
 
             df = pd.DataFrame([])
             df1 = cls._list(filters.copy(),startDate,'',openning,type)
-            if not df1.empty:
-                if type == 'batch':
-                    df1.rename(columns={'Qty':'QtyOpenning','Amt':'AmtOpenning'}, inplace=True)
-                df = df.append(df1)
+            if not df1.empty: df = df.append(df1)
             df2 = cls._list(filters, startDate, endDate, openning, type)
-            if not df2.empty:
-                if type == 'batch':
-                    df2.loc[df2['Qty']>0,'QtyIn'] = df2['Qty']
-                    df2.loc[df2['Qty']<0, 'QtyOut'] = df2['Qty']
-                    df2.loc[df2['Qty'] > 0, 'AmtIn'] = df2['Amt']
-                    df2.loc[df2['Qty'] < 0, 'AmtOut'] = df2['Amt']
-                df = df.append(df2)
+            if not df2.empty: df = df.append(df2)
 
-            if df.empty:
+            if df1.empty and df2.empty:
                 Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))
 
             DataFrameSetNan(df)
+            if type == 'batch':
+                groupfields = [f for f in set(df.columns)
+                               if ('qty' not in f.lower() and 'amt' not in f.lower() and 'supplier' not in f.lower()
+                                   and f.lower() not in ['remark'])]
+                sumfields = {f :max if 'supplier' in f.lower() else sum for f in set(df.columns)
+                             if ('qty' in f.lower() or 'amt' in f.lower() or 'supplier' in f.lower())}
+                df = df.groupby(by=groupfields, as_index=False).agg(sumfields)
+                for f in ['Qty','Amt']:
+                    df[f+'Closing'] = df[f+'Openning'] + df[f+'In'] + df[f+'Out']
+
+
+
             return [{**{k: getVal(v) for k,v in l.items()
-                     if k.lower() not in ['suppliercode','suppliername','remark'] and  v},
+                     if k.lower() not in ['suppliercode','suppliername','remark'] and v},
                     'SupplierCode':l.get('SupplierCode',''),'SupplierName':l.get('SupplierName',''),
                      'Remark':l.get('Remark','')}
                     for l in df.to_dict('records')]
@@ -322,8 +327,6 @@ class TransData(erp):
             if type == 'batch': # 现在查询期初而且batch
                 sumfields = sumfields + [func.max(cls.SupplierCode).label('SupplierCode'),
                                          func.max(Supplier.SupplierName).label('SupplierName')]
-        if type == 'batch':
-            fields.append(cls.BatchGuid)
 
         if openning or type in ['batch','dailyporeceipt']: # 需要期初或batch
             qry = qry.join(Item, cls.ItemCode == Item.ItemCode)
@@ -339,9 +342,10 @@ class TransData(erp):
 
         if endDate: # 现在查询明细
             filters = filters + [cls.TransDate>=startDate, cls.TransDate<=endDate]
-            fields = fields + [cls.SupplierCode, Supplier.SupplierName.label('SupplierName'),
-                               cls.Remark, cls.TransDate,cls.BusinessType, cls.Qty,
+            fields = fields + [cls.SupplierCode, Supplier.SupplierName.label('SupplierName'), cls.Qty,
                                func.coalesce(cls.ItemCost,cls.ItemPrice).label('Cost')]
+            if type != 'batch':
+                fields = fields + [cls.Remark, cls.TransDate,cls.BusinessType,cls.BatchGuid]
         else: # 现在查询期初
             filters.append(cls.TransDate<startDate)
 
@@ -358,8 +362,19 @@ class TransData(erp):
         if endDate:
             qry['Amt'] = round(qry['Qty'] * qry['Cost'],6)
         else: #期初
-            qry['TransDate'] = startDate
-            qry['BusinessType'] = 'Openning'
-            qry['Cost'] = round(qry['Amt'] / qry['Qty'])
+            if type != 'batch':
+                qry['TransDate'] = startDate
+                qry['BusinessType'] = 'Openning'
+            qry['Cost'] = round(qry['Amt'] / qry['Qty'],6)
+
+        if type == 'batch':
+            if endDate:
+                qry.loc[qry['Qty'] > 0, 'QtyIn'] = qry['Qty']
+                qry.loc[qry['Qty'] < 0, 'QtyOut'] = qry['Qty']
+                qry.loc[qry['Qty'] > 0, 'AmtIn'] = qry['Amt']
+                qry.loc[qry['Qty'] < 0, 'AmtOut'] = qry['Amt']
+                qry.drop(['Qty','Amt'], axis=1, inplace=True)
+            else: # 期初
+                qry.rename(columns={'Qty': 'QtyOpenning', 'Amt': 'AmtOpenning'}, inplace=True)
 
         return qry

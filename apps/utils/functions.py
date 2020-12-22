@@ -21,7 +21,8 @@ def getGUID():
 
 def getdict(obj):
     if isinstance(obj,DataFrame):
-        return [{k: getVal(v) for k,v in l.items() if v} for l in obj.to_dict('records')]
+        return [{k: getVal(v) for k,v in l.items() if v or (isinstance(v,bool) and getStr(v) !='') }
+                for l in obj.to_dict('records')]
     if isinstance(obj,dict):
         return {k:v for k,v in obj.items() if pd.notnull(v)}
 
@@ -96,6 +97,8 @@ def getNumber(d):
 def getVal(s):
     if isinstance(s,str):
         return getStr(s)
+    if isinstance(s,bool):
+        return s
     if isinstance(s,int):
         return getInt(s)
     if isinstance(s,Decimal):

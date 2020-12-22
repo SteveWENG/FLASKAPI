@@ -5,7 +5,7 @@ from pandas import merge
 from .Stockout import Stockout
 from ....utils.functions import Error
 from ..common.LangMast import lang
-from ..Item.ItemMast import ItemMast
+from ..common.Item import Item
 
 class DailyConsumption(Stockout):
     type = 'DailyConsumption'
@@ -22,7 +22,7 @@ class DailyConsumption(Stockout):
             if tmp1.empty:
                 Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
 
-            tmp = ItemMast.list(costCenterCode)
+            tmp = Item.list()
             tmp = merge(tmp1, tmp, how='left', left_on='ItemCode', right_on='ItemCode')
             tmp.fillna('', inplace=True)
             tmp.sort_values(by=['ItemCode', 'TransDate', 'Id'], inplace=True)
