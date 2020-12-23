@@ -256,58 +256,57 @@ class TransData(erp):
     # type detail, batch
     @classmethod
     def list(cls, data):
-        with RunApp():
-            filters = []
-            divisions = getStr(data.get('divisions', ''))
-            costCenterCodes = getStr(data.get('costCenterCodes', ''))
-            if divisions:
-                filters.append(CostCenter.Division.in_(divisions.split(',')))
-            if costCenterCodes:
-                filters.append(cls.CostCenterCode.in_(costCenterCodes.split(',')))
-            if len(filters) == 2:
-                filters = [or_(*filters)]
-            filters.append(func.round(cls.Qty, 6) != 0)
+        filters = []
+        divisions = getStr(data.get('divisions', ''))
+        costCenterCodes = getStr(data.get('costCenterCodes', ''))
+        if divisions:
+            filters.append(CostCenter.Division.in_(divisions.split(',')))
+        if costCenterCodes:
+            filters.append(cls.CostCenterCode.in_(costCenterCodes.split(',')))
+        if len(filters) == 2:
+            filters = [or_(*filters)]
+        filters.append(func.round(cls.Qty, 6) != 0)
 
-            openning = getStr(data.get('openning','false')).lower() == 'true'
-            startDate = getStr(data.get('startDate',''))
-            endDate = getStr(data.get('endDate',''))
-            type = data.get('type','detail').lower()
-            if type == 'batch':
-                openning = True
-            elif type == 'dailyporeceipt':
-                openning = False
-                filters.append(cls.BusinessType=='POReceipt')
+        openning = getStr(data.get('openning','false')).lower() == 'true'
+        startDate = getStr(data.get('startDate',''))
+        endDate = getStr(data.get('endDate',''))
+        type = data.get('type','detail').lower()
+        if type == 'batch':
+            openning = True
+        elif type == 'dailyporeceipt':
+            openning = False
+            filters.append(cls.BusinessType=='POReceipt')
 
-            if not startDate: startDate = endDate if endDate else datetime.date.today()
-            if not endDate: endDate = startDate
+        if not startDate: startDate = endDate if endDate else datetime.date.today()
+        if not endDate: endDate = startDate
 
-            df = pd.DataFrame([])
-            df1 = cls._list(filters.copy(),startDate,'',openning,type)
-            if not df1.empty: df = df.append(df1)
-            df2 = cls._list(filters, startDate, endDate, openning, type)
-            if not df2.empty: df = df.append(df2)
+        df = pd.DataFrame([])
+        df1 = cls._list(filters.copy(),startDate,'',openning,type)
+        if not df1.empty: df = df.append(df1)
+        df2 = cls._list(filters, startDate, endDate, openning, type)
+        if not df2.empty: df = df.append(df2)
 
-            if df1.empty and df2.empty:
-                Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))
+        if df1.empty and df2.empty:
+            Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))
 
-            DataFrameSetNan(df)
-            if type == 'batch':
-                groupfields = [f for f in set(df.columns)
-                               if ('qty' not in f.lower() and 'amt' not in f.lower() and 'supplier' not in f.lower()
-                                   and f.lower() not in ['remark'])]
-                sumfields = {f :max if 'supplier' in f.lower() else sum for f in set(df.columns)
-                             if ('qty' in f.lower() or 'amt' in f.lower() or 'supplier' in f.lower())}
-                df = df.groupby(by=groupfields, as_index=False).agg(sumfields)
-                for f in ['Qty','Amt']:
-                    df[f+'Closing'] = df[f+'Openning'] + df[f+'In'] + df[f+'Out']
+        DataFrameSetNan(df)
+        if type == 'batch':
+            groupfields = [f for f in set(df.columns)
+                           if ('qty' not in f.lower() and 'amt' not in f.lower() and 'supplier' not in f.lower()
+                               and f.lower() not in ['remark'])]
+            sumfields = {f :max if 'supplier' in f.lower() else sum for f in set(df.columns)
+                         if ('qty' in f.lower() or 'amt' in f.lower() or 'supplier' in f.lower())}
+            df = df.groupby(by=groupfields, as_index=False).agg(sumfields)
+            for f in ['Qty','Amt']:
+                df[f+'Closing'] = df[f+'Openning'] + df[f+'In'] + df[f+'Out']
+            for f in [f for f in df.columns if ('qty' in f.lower() or 'amt' in f.lower())]:
+                df[f] = round(df[f],6)
 
-
-
-            return [{**{k: getVal(v) for k,v in l.items()
-                     if k.lower() not in ['suppliercode','suppliername','remark'] and v},
-                    'SupplierCode':l.get('SupplierCode',''),'SupplierName':l.get('SupplierName',''),
-                     'Remark':l.get('Remark','')}
-                    for l in df.to_dict('records')]
+        return [{**{k: getVal(v) for k,v in l.items()
+                 if k.lower() not in ['suppliercode','suppliername','remark'] and v},
+                'SupplierCode':l.get('SupplierCode',''),'SupplierName':l.get('SupplierName',''),
+                 'Remark':l.get('Remark','')}
+                for l in df.to_dict('records')]
 
     # 期初：startDate, openning,type
     # 明细： startDate, endDate, openning, type

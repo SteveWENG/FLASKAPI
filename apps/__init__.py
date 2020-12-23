@@ -1,9 +1,10 @@
-from flask import Flask
+from flask import Flask, request
 from flask_cors import CORS
 from werkzeug.utils import import_string
 
 from .entity import db
 from config import Config
+from .entity.erp.Log import *
 
 blueprints = ['wechat', 'sfeed', 'stock','user','order','common']
 

@@ -1,5 +1,6 @@
 class Config:
     DEBUG = False
+    SQLALCHEMY_ECHO = True
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_DATABASE_URI = 'mssql+pymssql://sa:gladis0083@192.168.0.97/salesorder'
 

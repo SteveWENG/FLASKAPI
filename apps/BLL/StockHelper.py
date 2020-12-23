@@ -84,10 +84,10 @@ class StockHelper:
 
     @staticmethod
     def list(data):
-        with RunApp():
-            return TransData.list(data);
+        #with RunApp():
+        return TransData.list(data);
 
     @staticmethod
     def columns(data):
-        with RunApp():
-            return DataControlConfig.StockReportCols(data)
+        #with RunApp():
+        return DataControlConfig.StockReportCols(data)
