@@ -190,7 +190,6 @@ class OrderHead(erp):
             ret['DeadLine'] = deadline
         return ret
 
-    @dblog
     def save(self,data):
         with RunApp():
             # Food order存盘状态是submitted

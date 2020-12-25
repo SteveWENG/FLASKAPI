@@ -115,7 +115,6 @@ class TransData(erp):
         return dic
 
     @classmethod
-    @dblog
     def save(cls, data):
         try:
             if not data.get('data'):

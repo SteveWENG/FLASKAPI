@@ -41,7 +41,6 @@ class UserMast(erp):
             return False
 
     @classmethod
-    @dblog
     def ChangePassword(cls, userGuid, password):
         with SaveDB() as session:
             if cls.query.filter(cls.Guid==userGuid).update({'Password':password},synchronize_session=False) != 1:

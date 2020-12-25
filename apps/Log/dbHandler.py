@@ -5,15 +5,14 @@ import traceback
 
 from flask import request
 
-from ...erp import db
-from ..Log import Log
+from apps.Log import Log
 
-class SQLAlchemyHandler(logging.Handler):
+
+class dbHandler(logging.Handler):
     def emit(self, record):
         self.setLevel(20)
         dic = {}
-        dic['logger'] = record.__dict__['module']
-        dic['message'] = record.__dict__['message']
+        dic['logger'] = record.__dict__['name'] + ' '+ record.__dict__['module']
         dic['level'] = record.__dict__['levelname']
         if not request.json and dic['level']=='INFO': return
 
@@ -23,7 +22,11 @@ class SQLAlchemyHandler(logging.Handler):
         dic['method'] = request.full_path
         dic['UserIP'] = request.remote_addr
 
-        dic['data'] = str(request.json)
+        if 'sqlalchemy.engine' in record.__dict__['name']:
+            dic['data'] = record.__dict__['message']
+        else:
+            dic['message'] = record.__dict__['message']
+            dic['data'] = str(request.json)
 
         site = {k.lower(): v for k, v in request.json.items()
                 if k.lower() in ['costcentercode', 'division', 'company', 'creater']}
@@ -31,8 +34,5 @@ class SQLAlchemyHandler(logging.Handler):
             dic['Site'] = site.get('costcentercode', site.get('division', site.get('company')))
             if site.get('creater'):
                 dic['User'] = site.get('creater')
-
         log = Log(dic)
-
-        db.session.add(log)
-        db.session.commit()
+        log.save()
