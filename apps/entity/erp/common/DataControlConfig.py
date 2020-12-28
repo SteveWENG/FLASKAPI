@@ -32,8 +32,10 @@ class DataControlConfig(erp):
     def list(cls,types):
         if not types:
             Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))
+
         filters = [func.coalesce(cls.StartDate,'2000-1-1')<=datetime.date.today(),
                    func.coalesce(cls.EndDate,'2222-12-31')>=datetime.date.today()]
+
         if isinstance(types,str):
             filters.append(cls.Type==types)
         else:
@@ -61,8 +63,8 @@ class DataControlConfig(erp):
         type = data.get('type','detail').lower()
         today = datetime.date.today()
         tmp = cls.query.filter(cls.Type=='StockReport',func.coalesce(cls.Val1,'').like('%'+type+'%'),
-                               func.coalesce(cls.StartDate,'2000-1-1')<=today,
-                               func.coalesce(cls.EndDate,'2222-12-31')>=today)\
+                               func.coalesce(cls.StartDate, '2000-1-1') <= today,
+                               func.coalesce(cls.EndDate, '2222-12-31') >= today) \
             .with_entities(cls.Val2,cls.Val3,cls.Val4,cls.Val5,cls.Val6,cls.Val7)\
             .order_by(cls.SortName)
 

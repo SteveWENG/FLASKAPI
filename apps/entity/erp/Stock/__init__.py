@@ -297,7 +297,9 @@ class TransData(erp):
                          if ('qty' in f.lower() or 'amt' in f.lower() or 'supplier' in f.lower())}
             df = df.groupby(by=groupfields, as_index=False).agg(sumfields)
             for f in ['Qty','Amt']:
-                df[f+'Closing'] = df[f+'Openning'] + df[f+'In'] + df[f+'Out']
+                df[f+'Closing'] = df[f+'Openning'] \
+                                  +(df[f+'In'] if (f+'In') in df.columns else 0)\
+                                  + (df[f+'Out'] if (f+'Out') in df.columns else 0)
             for f in [f for f in df.columns if ('qty' in f.lower() or 'amt' in f.lower())]:
                 df[f] = round(df[f],6)
 

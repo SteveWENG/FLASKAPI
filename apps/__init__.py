@@ -1,16 +1,12 @@
 import logging
-import os
-from logging import handlers
 
-from flask import Flask
+from flask import Flask, current_app
 from flask_cors import CORS
 from werkzeug.utils import import_string
 
 from .Log.dbHandler import dbHandler
 from .entity import db
 from config import Config
-from .entity.erp.Log import *
-from .entity.erp.Log.SQLAlchemyHandler import SQLAlchemyHandler
 
 blueprints = ['wechat', 'sfeed', 'stock','user','order','common']
 
@@ -33,41 +29,34 @@ def create_app():
         app.register_blueprint(bp)
 
     create_log(app)
-
+    init_global()
     return app
 
 def create_log(app):
-    app.logger.addHandler(dbHandler())
+    handler = dbHandler()
+    handler.setLevel(20)
+    app.logger.addHandler(handler)
     app.logger.setLevel(20)
 
     if 'SQLALCHEMY_ECHO' not in Config.__dict__ or Config.SQLALCHEMY_ECHO != True:
         return
 
-    '''
-    logpath = './logs'
-    if not os.path.exists(logpath):
-        os.mkdir(logpath)
-    handler = handlers.TimedRotatingFileHandler(os.path.join(logpath, 'app.log'),
-                                                when='D', interval=1, backupCount=100, encoding='utf-8')
-    # handler = logging.FileHandler('./logs/app.log')
-    handler.suffix = "app.%Y%m%d-%H%M.log"
-    handler.setFormatter(logging.Formatter("[%(asctime)s] %(levelname)s\n[%(module)s - %(filename)s]\n\t%(message)s"))
-    handler.setLevel(20)
-    '''
-
     def _filter(record):
         # log表
+        if 'sqlalchemy.' not in record.name: return True
+        # db log
         if record.name == 'sqlalchemy.engine.base.Engine.adenlog' \
                 and record.module == 'base':
             return False
         if record.levelno > 20: return True
+
+        # if 'FROM [INFORMATION_SCHEMA].[' in record.message: return False
 
         return record.message.lower() not in ['{}', 'select @@version', 'select schema_name()',
                                               "select cast('test max support' as nvarchar(max))",
                                               "select cast('test unicode returns' as nvarchar(60)) as anon_1",
                                               "select cast('test plain returns' as varchar(60)) as anon_1"]
 
-    handler = dbHandler()
     nologfilter = logging.Filter()
     nologfilter.filter = lambda record: _filter(record)
     handler.addFilter(nologfilter)
@@ -75,3 +64,22 @@ def create_log(app):
     logger = logging.getLogger('sqlalchemy.engine')
     logger.addHandler(handler)
     logger.setLevel(20)
+
+def init_global():
+    # 初始化一个全局的字典
+    global _global_dict
+    _global_dict = {}
+
+def remove_key(key):
+    if key not in _global_dict:
+        return
+    del _global_dict[key]
+
+def set_value(key, value):
+    _global_dict[key] = value
+
+def get_value(key):
+    try:
+        return _global_dict[key]
+    except Exception as e:
+        return None

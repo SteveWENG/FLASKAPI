@@ -1,38 +1,68 @@
 # -*- coding: utf-8 -*-
-
+import _thread
 import logging
+import re
 import traceback
-
 from flask import request
+import datetime
 
 from apps.Log import Log
+from apps.utils.functions import *
 
 
 class dbHandler(logging.Handler):
     def emit(self, record):
-        self.setLevel(20)
-        dic = {}
-        dic['logger'] = record.__dict__['name'] + ' '+ record.__dict__['module']
-        dic['level'] = record.__dict__['levelname']
-        if not request.json and dic['level']=='INFO': return
+        logger = record.__dict__['name'] + ' ' + record.__dict__['module']
+        level = record.__dict__['levelname']
+        if not request.json and level == 'INFO': return
 
-        if dic.get('level') == 'ERROR':
-            dic['trace'] = traceback.format_exc()
+        # 不记录
+        # SELECT ... WHERE [tblDataControlConfig].[Type] = %(Type_1)s AND coalesce([tblDataControlConfig].[Val1], %(coalesce_1)s) LIKE %(coalesce_2)s AND coalesce([tblDataControlConfig].[StartDate], %(coalesce_3)s) <= %(coalesce_4)s AND coalesce([tblDataControlConfig].[EndDate], %(coalesce_5)s) >= %(coalesce_6)s) AND [INFORMATION_SCHEMA].[COLUMNS].[TABLE_SCHEMA] = CAST(%(table_schema_1)s AS NVARCHAR(max))
+        # {'Type_1': 'StockReport', 'coalesce_1': '', 'coalesce_2': '%batch%', 'coalesce_3': '2000-1-1', 'coalesce_4': datetime.datetime(2020, 12, 25, 0, 0), 'coalesce_5': '2222-12-31', 'coalesce_6': datetime.datetime(2020, 12, 25, 0, 0), 'table_schema_1': 'dbo'}
+        # ROLLBACK
+        if 'sqlalchemy.' in record.__dict__['name']:
+            if 'FROM [INFORMATION_SCHEMA].[' in record.__dict__['message']:
+                self.UnwantedLog = re.split(r'(?:\%\(|\)s)', record.__dict__['message'])
+                return
 
-        dic['method'] = request.full_path
-        dic['UserIP'] = request.remote_addr
+            # 发出 [INFORMATION_SCHEMA]后，再发出值和ROLLBACK
+            if 'UnwantedLog' in dir(self) and self.UnwantedLog:
+                if record.__dict__['message'] == 'ROLLBACK':
+                    self.UnwantedLog = None
+                    return
 
-        if 'sqlalchemy.engine' in record.__dict__['name']:
-            dic['data'] = record.__dict__['message']
+                # 前SQL命令的赋值
+                vals = eval(record.__dict__['message'])
+                if isinstance(vals, dict) and set(vals.keys()) <= set(self.UnwantedLog):
+                    return
+
+        self.UnwantedLog = None
+
+        if level != 'INFO' or 'log' not in dir(self) or 'sqlalchemy.engine' not in logger or \
+                self.log.logger != logger or self.log.level != level:
+            self.log = Log()
+            self.log.logger = logger
+            self.log.level = level
+            self.log.method = request.full_path
+            self.log.UserIP = request.remote_addr
+
+            if level == 'ERROR':
+                self.log.message = getStr(self.log.message) + ('\n' if self.log.message else '') + traceback.format_exc()
+
+        self.log.data = getStr(self.log.data) + ('\n' if self.log.data else '')
+
+        if 'sqlalchemy.' in record.__dict__['name']:
+            self.log.data += record.__dict__['message']
         else:
-            dic['message'] = record.__dict__['message']
-            dic['data'] = str(request.json)
+            self.log.message = getStr(self.log.message) + ('\n' if self.log.message else '')\
+                               + record.__dict__['message']
+            self.log.data += str(request.json)
 
         site = {k.lower(): v for k, v in request.json.items()
                 if k.lower() in ['costcentercode', 'division', 'company', 'creater']}
         if site:
-            dic['Site'] = site.get('costcentercode', site.get('division', site.get('company')))
+            self.log.Site = site.get('costcentercode', site.get('division', site.get('company')))
             if site.get('creater'):
-                dic['User'] = site.get('creater')
-        log = Log(dic)
-        log.save()
+                self.log.User = site.get('creater')
+        # _thread.start_new_thread(self.log.save, ())
+        self.log.Id = self.log.save()

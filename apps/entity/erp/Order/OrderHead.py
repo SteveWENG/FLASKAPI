@@ -85,7 +85,7 @@ class OrderHead(erp):
     # 可以做几天前的补单和非s食品PO
     @classmethod
     def getEarliestDays(cls, costCenterCode):
-        return getInt(cls.getConfigs(costCenterCode, 'PO', 'EarliestDays', 'Val3'))
+        return  getInt(cls.getConfigs(costCenterCode, 'PO', 'EarliestDays', 'Val3'))
 
     # NoFood:
     # Food: 补单，普通单

@@ -1,17 +1,19 @@
 # -*- coding: utf-8 -*-
 
-import logging
-import os
-
 from flask import jsonify
-from apps import create_app
-from apps.entity.erp.Log.SQLAlchemyHandler import SQLAlchemyHandler
+# from apps import create_app
+import apps
+from apps.utils.functions import getGUID
 
-app = create_app()
+app = apps.create_app()
 
 @app.route('/')
 def show():
     return 'hello world', 200
+
+@app.before_request
+def before_request(*args, **kwargs):
+    apps.set_value('Log.Guid',getGUID())
 
 @app.after_request
 def after_request(response):
@@ -20,7 +22,7 @@ def after_request(response):
     # since that 500 is already logged via @app.errorhandler.
 
     if response.status_code == 200:
-        app.logger.info('Ok')
+        app.logger.info('Completed')
 
     return response
 

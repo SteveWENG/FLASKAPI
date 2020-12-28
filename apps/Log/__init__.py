@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
-
+from copy import copy
 from datetime import datetime
 
 from sqlalchemy import create_engine, Column, Integer, Numeric, Date
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import attributes, properties, sessionmaker, scoped_session
 
+import apps
 from apps.utils.functions import *
 from config import Config
 
@@ -16,9 +17,9 @@ class Log(Base):
     __tablename__ = 'tblLogs'
 
     Id = Column(Integer, primary_key=True)
+    Guid = Column()
     logger = Column()
     level = Column()
-    trace = Column()
     message = Column()
     method = Column()
     data = Column()
@@ -27,6 +28,7 @@ class Log(Base):
     User = Column()
 
     def __init__(self, d=None):
+        self.Guid = apps.get_value('Log.Guid')
         if not d:
             return
 
@@ -68,7 +70,9 @@ class Log(Base):
         try:
             session.add(self)
             session.commit()
+            return self.Id
         except:
             session.rollback()
         finally:
             session.close()
+
