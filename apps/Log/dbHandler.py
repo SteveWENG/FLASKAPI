@@ -6,6 +6,7 @@ import traceback
 from flask import request
 import datetime
 
+import apps
 from apps.Log import Log
 from apps.utils.functions import *
 
@@ -37,10 +38,13 @@ class dbHandler(logging.Handler):
                     return
 
         self.UnwantedLog = None
+        guid = apps.get_value('Log.Guid')
 
-        if level != 'INFO' or 'log' not in dir(self) or 'sqlalchemy.engine' not in logger or \
+        if level != 'INFO' or \
+                'log' not in dir(self) or self.log.Guid !=guid \
+                or 'sqlalchemy.engine' not in logger or \
                 self.log.logger != logger or self.log.level != level:
-            self.log = Log()
+            self.log = Log(guid)
             self.log.logger = logger
             self.log.level = level
             self.log.method = request.full_path

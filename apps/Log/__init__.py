@@ -6,7 +6,6 @@ from sqlalchemy import create_engine, Column, Integer, Numeric, Date
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import attributes, properties, sessionmaker, scoped_session
 
-import apps
 from apps.utils.functions import *
 from config import Config
 
@@ -27,8 +26,10 @@ class Log(Base):
     Site = Column()
     User = Column()
 
-    def __init__(self, d=None):
-        self.Guid = apps.get_value('Log.Guid')
+    def __init__(self, guid): # d=None):
+        self.Guid = guid
+
+        '''
         if not d:
             return
 
@@ -51,6 +52,7 @@ class Log(Base):
                         v = getDateTime(v)
 
             setattr(self, tmpkey, self._wrap(v))
+        '''
 
     def _wrap(self, value):
         if isinstance(value, (tuple, list, set, frozenset)):
