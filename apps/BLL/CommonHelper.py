@@ -25,7 +25,7 @@ class CommonHelper:
 
         DataFrameSetNan(tmpRoleUsers)
         tmp = [{'RoleGuid':g1[0],'UserGuid':g1[1],'UserName':g1[2],'FullName':g1[3],
-                'compSite':[[v for v in l.values()] for l in g2[['Division','Code','Id']].to_dict('record')]}
+                'compSite':[[v for v in l.values()] for l in g2[['Division','Code','Id' ]].to_dict('record')]}
                for g1, g2 in tmpRoleUsers.groupby(['RoleGuid','UserGuid','UserName','FullName'])]
 
         return {'apps': tmpApps, 'RoleApps': getdict(tmpRoleApps), 'RoleUsers': tmp}
