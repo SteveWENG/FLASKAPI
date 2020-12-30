@@ -23,9 +23,15 @@ class CommonHelper:
         tmpRoleApps = AppUserData.RoleApps()
         tmpRoleUsers = RoleUserData.list()
 
+        tmp = tmpRoleApps[['RoleGuid','RoleName']]
+        tmp.drop_duplicates(inplace=True)
+
+        tmpRoleUsers = merge(tmpRoleUsers,tmp, left_on="RoleGuid", right_on="RoleGuid")
         DataFrameSetNan(tmpRoleUsers)
-        tmp = [{'RoleGuid':g1[0],'UserGuid':g1[1],'UserName':g1[2],'FullName':g1[3],
-                'compSite':[[v for v in l.values()] for l in g2[['Division','Code','Id' ]].to_dict('record')]}
-               for g1, g2 in tmpRoleUsers.groupby(['RoleGuid','UserGuid','UserName','FullName'])]
+
+        tmp = [{'RoleGuid':g1,'RoleName':g2.iloc[0]['RoleName'],'UserGuid':g2.iloc[0]['UserGuid'],
+                'UserName':g2.iloc[0]['UserName'],'FullName':g2.iloc[0]['FullName'],
+                'compSite':[[v for v in l.values()] for l in g2[['Division','Code','Id']].to_dict('record')]}
+               for g1, g2 in tmpRoleUsers.groupby(['RoleGuid'])]
 
         return {'apps': tmpApps, 'RoleApps': getdict(tmpRoleApps), 'RoleUsers': tmp}

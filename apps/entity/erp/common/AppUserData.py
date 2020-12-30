@@ -62,6 +62,6 @@ class AppUserData(erp):
 
     @classmethod
     def RoleApps(cls):
-        return cls.query.filter(func.coalesce(cls.RoleGuid,'') !='')\
+        return pd.read_sql(cls.query.filter(func.coalesce(cls.RoleGuid,'') !='')\
             .with_entities(cls.RoleGuid,cls.RoleName,cls.AppGuid)\
-            .order_by(cls.RoleGuid).all()
+            .order_by(cls.RoleGuid).statement,cls.getBind())

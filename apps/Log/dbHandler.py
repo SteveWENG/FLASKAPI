@@ -57,10 +57,12 @@ class dbHandler(logging.Handler):
             if level == 'ERROR':
                 self.log.message = getStr(self.log.message) + ('\n' if self.log.message else '') + traceback.format_exc()
 
-        self.log.data = getStr(self.log.data) + ('\n' if self.log.data else '')
+        self.log.data = getStr(self.log.data) + ('\n\n' if self.log.data else '')
 
         if 'sqlalchemy.' in record.__dict__['name']:
             try:
+                if not self.log.data: Error('')
+
                 vals = eval(record.__dict__['message'])
                 if not isinstance(vals, dict) or set(vals.keys()) > set(re.split(r'(?:\%\(|\)s)', self.log.data)):
                     Error('')
