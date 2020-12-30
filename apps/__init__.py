@@ -29,7 +29,7 @@ def create_app():
         app.register_blueprint(bp)
 
     create_log(app)
-    init_global()
+
     return app
 
 def create_log(app):
@@ -64,22 +64,3 @@ def create_log(app):
     logger = logging.getLogger('sqlalchemy.engine')
     logger.addHandler(handler)
     logger.setLevel(20)
-
-def init_global():
-    # 初始化一个全局的字典
-    global _global_dict
-    _global_dict = {}
-
-def remove_key(key):
-    if key not in _global_dict:
-        return
-    del _global_dict[key]
-
-def set_value(key, value):
-    _global_dict[key] = value
-
-def get_value(key):
-    try:
-        return _global_dict[key]
-    except Exception as e:
-        return None

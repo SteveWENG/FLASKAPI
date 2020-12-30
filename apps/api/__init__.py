@@ -10,8 +10,16 @@ def webapi(func):
         if dic == None or not isinstance(dic, dict):
             Error('No parameter')
 
-        if dic.get('langCode',''):
-            g.LangCode = dic.get('langCode','').upper()
+        tmpdic = {k.lower():v for k,v in dic.items()}
+        if tmpdic.get('langcode'):
+            g.LangCode = tmpdic.get('langcode','').upper()
+        if tmpdic.get('creater'):
+            g.User = tmpdic.get('creater')
+
+        tmp = tmpdic.get('costcentercode',tmpdic.get('division',tmpdic.get('company')))
+        if tmp:
+            g.Site = tmp
+
         return jsonify({'status': 200, 'data': func(dic)}),200
     #except Exception as e:
 

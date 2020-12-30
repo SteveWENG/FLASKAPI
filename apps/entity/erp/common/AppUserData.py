@@ -12,6 +12,7 @@ class AppUserData(erp):
 
     UserGuid = db.Column()
     RoleGuid = db.Column()
+    RoleName = db.Column()
     AppGuid = db.Column()
     Type = db.Column()
     Code = db.Column()
@@ -58,3 +59,9 @@ class AppUserData(erp):
                         cls.Status==True, Apps.Status==True)
         except Exception as e:
             raise e
+
+    @classmethod
+    def RoleApps(cls):
+        return cls.query.filter(func.coalesce(cls.RoleGuid,'') !='')\
+            .with_entities(cls.RoleGuid,cls.RoleName,cls.AppGuid)\
+            .order_by(cls.RoleGuid).all()

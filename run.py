@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from flask import jsonify
+from flask import jsonify, g
 # from apps import create_app
 import apps
 from apps.utils.functions import getGUID
@@ -13,7 +13,8 @@ def show():
 
 @app.before_request
 def before_request(*args, **kwargs):
-    apps.set_value('Log.Guid',getGUID())
+    g.LogGuid = getGUID()
+
 
 @app.after_request
 def after_request(response):

@@ -3,7 +3,7 @@ import _thread
 import logging
 import re
 import traceback
-from flask import request
+from flask import request, g
 import datetime
 
 import apps
@@ -33,12 +33,15 @@ class dbHandler(logging.Handler):
                     return
 
                 # 前SQL命令的赋值
-                vals = eval(record.__dict__['message'])
-                if isinstance(vals, dict) and set(vals.keys()) <= set(self.UnwantedLog):
-                    return
+                try:
+                    vals = eval(record.__dict__['message'])
+                    if isinstance(vals, dict) and set(vals.keys()) <= set(self.UnwantedLog):
+                        return
+                except:
+                    pass
 
         self.UnwantedLog = None
-        guid = apps.get_value('Log.Guid')
+        guid = g.LogGuid
 
         if level != 'INFO' or \
                 'log' not in dir(self) or self.log.Guid !=guid \
@@ -56,17 +59,25 @@ class dbHandler(logging.Handler):
         self.log.data = getStr(self.log.data) + ('\n' if self.log.data else '')
 
         if 'sqlalchemy.' in record.__dict__['name']:
-            self.log.data += record.__dict__['message']
+            try:
+                vals = eval(record.__dict__['message'])
+                if not isinstance(vals, dict) or set(vals.keys()) > set(re.split(r'(?:\%\(|\)s)', self.log.data)):
+                    Error('')
+
+                self.log.data = self.log.data % {k:"\'"+getVal(v)+"\'"
+                                                if (isinstance(v,str) or isinstance(v,datetime.datetime)) else v
+                                                 for k,v in vals.items()}
+            except:
+                self.log.data += record.__dict__['message']
         else:
             self.log.message = getStr(self.log.message) + ('\n' if self.log.message else '')\
                                + record.__dict__['message']
             self.log.data += str(request.json)
 
-        site = {k.lower(): v for k, v in request.json.items()
-                if k.lower() in ['costcentercode', 'division', 'company', 'creater']}
-        if site:
-            self.log.Site = site.get('costcentercode', site.get('division', site.get('company')))
-            if site.get('creater'):
-                self.log.User = site.get('creater')
+        if g.get('Site'):
+            self.log.Site = g.get('Site')
+        if g.get('User'):
+            self.log.User = g.get('User')
+
         # _thread.start_new_thread(self.log.save, ())
         self.log.Id = self.log.save()
