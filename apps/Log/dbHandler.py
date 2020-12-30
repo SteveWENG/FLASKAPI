@@ -22,7 +22,8 @@ class dbHandler(logging.Handler):
         # {'Type_1': 'StockReport', 'coalesce_1': '', 'coalesce_2': '%batch%', 'coalesce_3': '2000-1-1', 'coalesce_4': datetime.datetime(2020, 12, 25, 0, 0), 'coalesce_5': '2222-12-31', 'coalesce_6': datetime.datetime(2020, 12, 25, 0, 0), 'table_schema_1': 'dbo'}
         # ROLLBACK
         if 'sqlalchemy.' in record.__dict__['name']:
-            if 'FROM [INFORMATION_SCHEMA].[' in record.__dict__['message']:
+            if ('UnwantedLog' not in dir(self) or not self.UnwantedLog)\
+                    and 'FROM [INFORMATION_SCHEMA].[' in record.__dict__['message']:
                 self.UnwantedLog = re.split(r'(?:\%\(|\)s)', record.__dict__['message'])
                 return
 
