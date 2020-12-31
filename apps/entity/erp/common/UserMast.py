@@ -4,7 +4,7 @@ from ldap3 import Server, Connection, ALL,NTLM
 
 from config import AD
 from .LangMast import lang
-from ... import dblog, SaveDB
+from ... import SaveDB
 from ....utils.functions import *
 from ...erp import erp, db
 

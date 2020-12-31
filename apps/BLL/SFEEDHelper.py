@@ -1,7 +1,7 @@
 
 from sqlalchemy import and_, desc
 
-from ..entity import SaveDB, dblog
+from ..entity import SaveDB
 from ..entity.sfeed.Site import Site
 from ..utils.functions import *
 from ..entity.sfeed.User import User

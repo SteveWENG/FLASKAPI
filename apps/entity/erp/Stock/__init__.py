@@ -8,7 +8,6 @@ from pandas import merge
 from ..common.Item import Item
 from ..common.CostCenter import CostCenter
 from ..common.Supplier import Supplier
-from ....entity import dblog
 from ....utils.functions import *
 from ...erp import erp, db
 from ..common.LangMast import lang

@@ -14,6 +14,7 @@ def show():
 @app.before_request
 def before_request(*args, **kwargs):
     g.LogGuid = getGUID()
+    app.logger.info('Started')
 
 
 @app.after_request

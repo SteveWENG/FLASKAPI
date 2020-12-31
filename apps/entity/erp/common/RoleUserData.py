@@ -17,7 +17,7 @@ class RoleUserData(erp):
 
     @classmethod
     def list(cls):
-        return pd.read_sql(cls.query.join(UserMast, cls.UserGuid==UserMast.Guid)
+        df = pd.read_sql(cls.query.join(UserMast, cls.UserGuid==UserMast.Guid)
                            .outerjoin(CostCenter,
                                       and_(func.lower(cls.Type)=='costcenter',
                                            cls.Code==CostCenter.CostCenterCode))\
@@ -25,4 +25,7 @@ class RoleUserData(erp):
             .with_entities(cls.Id,cls.RoleGuid,cls.UserGuid,
                            UserMast.UserName,UserMast.FullName,
                            cls.Type,cls.Code,CostCenter.Division)\
-            .order_by(cls.RoleGuid,UserMast.UserName).statement,cls.getBind());
+            .order_by(cls.RoleGuid,UserMast.UserName).statement,cls.getBind())
+        df.loc[df['Type'].str.lower().isin(['company','division']),'Divison'] = df['Code']
+        df.loc[df['Type'].str.lower()=='costcenter', 'CostCenterCode'] = df['Code']
+        return df.drop(['Code'],axis=1)

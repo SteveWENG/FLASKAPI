@@ -16,10 +16,7 @@ class CostCenter(erp):
     StartDate = db.Column('Load_Time',db.Date)
 
     @classmethod
-    def Sites(cls, divisions, costCenterCodes):
-        if divisions==None and costCenterCodes==None:
-            return []
-
+    def Sites(cls, divisions=None, costCenterCodes=None):
         filter = []
         if divisions:
             filter.append(cls.Division.in_(divisions))

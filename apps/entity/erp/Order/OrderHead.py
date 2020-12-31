@@ -15,7 +15,7 @@ from ....utils.QRCode import QRCodeBytes
 from ....utils.functions import *
 from ...erp import erp, db
 from .OrderLine import OrderLine
-from ....entity import SaveDB, dblog
+from ....entity import SaveDB
 
 
 class OrderHead(erp):
