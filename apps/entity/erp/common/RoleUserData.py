@@ -3,7 +3,9 @@
 import pandas as pd
 from sqlalchemy import func, and_
 
+from ....utils.functions import *
 from .CostCenter import CostCenter
+from .LangMast import lang
 from .UserMast import UserMast
 from ...erp import erp, db
 
@@ -29,3 +31,9 @@ class RoleUserData(erp):
         df.loc[df['Type'].str.lower().isin(['company','division']),'Divison'] = df['Code']
         df.loc[df['Type'].str.lower()=='costcenter', 'CostCenterCode'] = df['Code']
         return df.drop(['Code'],axis=1)
+
+    @classmethod
+    def save(cls,lines):
+        with cls.merges(lines,True) as _:
+            pass
+        return lang('56CF8259-D808-4796-A077-11124C523F6F')

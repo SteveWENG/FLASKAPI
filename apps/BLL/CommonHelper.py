@@ -40,3 +40,8 @@ class CommonHelper:
         tmpSites = [{'value':g1,'children':getdict(g2[['CostCenterCode']].rename(columns={'CostCenterCode':'value'}))}
                     for g1,g2 in tmpSites.groupby(['Division'])]
         return {'apps': tmpApps, 'RoleApps': getdict(tmpRoleApps), 'RoleUsers': tmpRoleUsers, 'Sites':tmpSites}
+
+    @staticmethod
+    def SaveUserRole(data):
+        tmp = data.get('data')
+        return RoleUserData.save(tmp)

@@ -31,6 +31,7 @@ class BaseModel(db.Model):
                     or (tmpkey.lower()=='id' and getNumber(v)<1):  #无值和 Id
                 continue
 
+            if not v: v = None
             #Date和Numeric，数据要转换
             prop = getattr(type(self),tmpkey)
             if isinstance(prop, attributes.InstrumentedAttribute):
@@ -75,6 +76,17 @@ class BaseModel(db.Model):
             tmp = [cls(l) for l in lines]
             with SaveDB() as session:
                 session.add_all(tmp)
+                yield session
+        except Exception as e:
+            raise e
+
+    @classmethod
+    @contextmanager
+    def merges(cls, lines, keepEmpty=False):
+        try:
+            with SaveDB() as session:
+                for l in lines:
+                    session.merge(cls(l,keepEmpty))
                 yield session
         except Exception as e:
             raise e

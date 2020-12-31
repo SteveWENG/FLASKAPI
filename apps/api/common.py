@@ -13,3 +13,7 @@ def dates():
 @bp.route('/apprights', methods=['POST'])
 def AppRights():
     return webapi(lambda dic: CommonHelper.AppRights(dic))
+
+@bp.route('/saveuserrole', methods=['POST'])
+def SaveUserRole():
+    return webapi(lambda dic: CommonHelper.SaveUserRole(dic))

@@ -13,6 +13,7 @@ from apps.utils.functions import *
 
 class dbHandler(logging.Handler):
     def emit(self, record):
+
         logger = record.__dict__['name'] + ' ' + record.__dict__['module']
         level = record.__dict__['levelname']
         if not request.json and level == 'INFO': return
@@ -71,7 +72,7 @@ class dbHandler(logging.Handler):
                                                 if (isinstance(v,str) or isinstance(v,datetime.datetime)) else v
                                                  for k,v in vals.items()}
             except:
-                self.log.data += record.__dict__['message']
+                self.log.data += '[%s]\n' % getDateTime(datetime.datetime.now()) +  record.__dict__['message']
         else:
             self.log.message = getStr(self.log.message) + ('\n' if self.log.message else '')\
                                + record.__dict__['message']
