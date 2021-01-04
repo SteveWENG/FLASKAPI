@@ -8,7 +8,6 @@ from sqlalchemy.ext.hybrid import hybrid_property
 
 from .OrderLine import OrderLine
 from ..Stock import TransData
-from ..common.CCMast import CCMast
 from ..common.CostCenter import CostCenter
 from ..common.DataControlConfig import DataControlConfig
 from ..common.LangMast import lang
@@ -222,6 +221,12 @@ class OrderHead(erp):
                 # self.lines = [OrderLine(getdict(l),True) for l in dflines.to_dict(orient='records')]
 
             with SaveDB() as session:
+                # OrderNo与HeadGuid是一对一
+                if OrderHead.query.filter(OrderHead.OrderNo==self.OrderNo,
+                                          OrderHead.HeadGuid != self.HeadGuid,
+                                          OrderHead.Active==True).first():
+                    Error(lang('BA9AB871-4BDD-4C72-A5EF-9CCA75953F36') % self.OrderNo)
+
                 # 已入库，不能修改（不分供应商）
                 if OrderLine.query.filter(OrderLine.HeadGuid==self.HeadGuid,
                                           func.abs(func.round(OrderLine.Qty
