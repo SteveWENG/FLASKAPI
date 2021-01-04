@@ -9,6 +9,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from .OrderLine import OrderLine
 from ..Stock import TransData
 from ..common.CCMast import CCMast
+from ..common.CostCenter import CostCenter
 from ..common.DataControlConfig import DataControlConfig
 from ..common.LangMast import lang
 from ....utils.QRCode import QRCodeBytes
@@ -45,7 +46,7 @@ class OrderHead(erp):
         if df.empty: return ''
 
         DataFrameSetNan(df)
-        tmpdf = df[df['Val2'] == CCMast.GetDivision(costCenterCode)]
+        tmpdf = df[df['Val2'] == CostCenter.GetDivision(costCenterCode)]
         if not tmpdf.empty:
             df = tmpdf
 

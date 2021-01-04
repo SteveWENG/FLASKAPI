@@ -34,7 +34,7 @@ class CostCenter(erp):
         return cls.query.filter(cls.StartDate<=datetime.date.today()).with_entities(cls.Division).distinct().all()
 
     @classmethod
-    def getDivision(cls, costCenterCode):
+    def GetDivision(cls, costCenterCode):
         qry = cls.query.filter(cls.CostCenterCode == costCenterCode,cls.StartDate<=datetime.date.today())\
             .with_entities(cls.Division).first()
         if not qry:

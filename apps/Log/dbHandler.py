@@ -55,9 +55,6 @@ class dbHandler(logging.Handler):
             self.log.method = request.full_path
             self.log.UserIP = request.remote_addr
 
-            if level == 'ERROR':
-                self.log.message = getStr(self.log.message) + ('\n' if self.log.message else '') + traceback.format_exc()
-
         self.log.data = getStr(self.log.data) + ('\n\n' if self.log.data else '')
 
         if 'sqlalchemy.' in record.__dict__['name']:
@@ -77,6 +74,9 @@ class dbHandler(logging.Handler):
             self.log.message = getStr(self.log.message) + ('\n' if self.log.message else '')\
                                + record.__dict__['message']
             self.log.data += str(request.json)
+
+        if level == 'ERROR':
+            self.log.message = getStr(self.log.message) + ('\n' if self.log.message else '') + traceback.format_exc()
 
         if g.get('Site'):
             self.log.Site = g.get('Site')
