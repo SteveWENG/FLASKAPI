@@ -79,6 +79,11 @@ def getWeekDay(name):
     weekdays = {'Monday': 0, 'Tuesday': 1, 'Wednesday': 2, 'Thursday': 3, 'Friday': 4, 'Saturday': 5, 'Sunday': 6}
     return weekdays[name.capitalize()]
 
+def isSameWeek(date1,date2):
+    if date1 > date2:
+        date1, date2 = date2, date1
+
+    return (date2-date1).days < 7 and date2.weekday()>=date1.weekday()
 
 def getInt(o):
     if getStr(o) == '':
