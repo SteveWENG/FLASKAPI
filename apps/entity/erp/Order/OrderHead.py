@@ -8,6 +8,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 
 from .OrderLine import OrderLine
 from ..Stock import TransData
+from ..common.Calendar import Calendar
 from ..common.CostCenter import CostCenter
 from ..common.DataControlConfig import DataControlConfig
 from ..common.LangMast import lang
@@ -91,7 +92,10 @@ class OrderHead(erp):
     # Food: 补单，普通单
     @classmethod
     def dates(cls, costCenterCode, orderType):
-        earLiestDate = datetime.date.today() - datetime.timedelta(days=cls.getEarliestDays(costCenterCode))
+        workdates = Calendar.WorkDates()
+        earLiestDate = sorted([d for d in workdates if d <= datetime.date.today()],
+                              reverse=True)[cls.getEarliestDays(costCenterCode)]
+        # earLiestDate = datetime.date.today() - datetime.timedelta(days=cls.getEarliestDays(costCenterCode))
         ret = {'EarliestDate': getDateTime(earLiestDate)}
 
         if orderType.lower() != 'food':
@@ -121,6 +125,7 @@ class OrderHead(erp):
         remark = 'This Week'
         if date.weekday() < datetime.datetime.today().weekday() or (date-datetime.date.today()).days>6:
             remark = 'Next Week'
+
         startWeekDay = cls.getStartWeekDay(costCenterCode)
         ppoweeks = cls.getPlanningPOWeeks(costCenterCode)
         while(True):
