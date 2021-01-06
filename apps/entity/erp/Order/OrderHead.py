@@ -134,7 +134,7 @@ class OrderHead(erp):
         canDoNextWeek = False
         tmp = sorted([d for d in workdates if d >= date])
         # tmp[1] or tmp[0]是下一周
-        if not isSameWeek(today,tmp[0]) or not isSameWeek(today,tmp[1]):
+        if not isSameWeek(today,tmp[1]):
             canDoNextWeek = True
 
         startWeekDay = cls.getStartWeekDay(costCenterCode)
