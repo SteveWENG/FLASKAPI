@@ -33,73 +33,7 @@ class TransData(erp):
     ItemCost = db.Column(db.Numeric)
     ItemPrice = db.Column(db.Numeric)
     SysGuid = db.Column(server_default='newid()')
-
-    '''
-    def todict(self):
-        return {c.name: getattr(self, c.name, None) for c in self.__table__.columns if getattr(self, c.name, None) != None}
-
-    @classmethod
-    def StockItemTrans(cls, data):
-        return list(filter(lambda l:l.get('isServiceItem',False)==False, data))
-
-    @classmethod
-    def ServiceItemTrans(cls, data):
-        return list(filter(lambda l: l.get('isServiceItem', False) == True, data))
-        
-    #库存查询
-    @classmethod
-    def FIFO(cls, costCenterCode, date=datetime.date.today(), itemcodes=None):
-        if itemcodes == None: # None 无；[] 全部
-            Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF')) # No data
-
-        filters = [cls.CostCenterCode==costCenterCode, cls.TransDate<=date]
-        if itemcodes != None and len(itemcodes) > 0:
-            filters.append(cls.ItemCode.in_(itemcodes))
-
-        tmpsql = cls.query.filter(*filters, func.abs(func.round(func.coalesce(cls.Qty,0),6))>1/1000000)\
-            .with_entities(cls.BatchGuid,cls.ItemCode,cls.TransDate.label('INDATE'),cls.ItemCost,
-                           func.round(cls.Qty,6).label('InQty'),
-                           func.max(cls.Id).over().label('MAXID'),
-                           func.sum(case([(cls.Qty>0, cls.Qty)],else_=0))
-                           .over(partition_by=cls.ItemCode,order_by=[cls.TransDate, cls.Id]).label('EndQty'),
-                           func.sum(case([(cls.Qty<0, cls.Qty)],else_=0))
-                           .over(partition_by=cls.ItemCode).label('OutQty')).subquery()
-        tmpsql = select([tmpsql]).where(and_(tmpsql.c.InQty>0,func.round(tmpsql.c.EndQty+tmpsql.c.OutQty,6)>0))\
-            .select_from(tmpsql)
-        tmpList = pd.read_sql(tmpsql, cls.getBind())
-
-        # 无库存
-        if tmpList.empty:
-            Error(lang('2CF04A40-C498-406F-964E-36C0B17EC765')) # No stock
-
-        tmpList['EndQty'] = tmpList['EndQty'] + tmpList['OutQty']
-        tmpList['StartQty'] = tmpList['EndQty'] - tmpList['InQty'] #tmpList.apply(lambda l: max(getNumber(l.get('EndQty')) - getNumber(l.get('Qty')), 0), axis=1)
-        tmpList.loc[tmpList['StartQty']<0,'StartQty'] = 0
-        tmpList.loc[tmpList['StartQty']==0, 'InQty'] = tmpList['EndQty']
-        tmpList.drop(['OutQty'],axis=1, inplace=True)
-        return tmpList
-        
-    @classmethod
-    def ZipStockList(cls, li):
-        if li.empty:
-            return li
-
-        matchedFields = [s for s in li if s.lower() in ('itemcode','itemcost')]
-        if len(li) == len(li.groupby(matchedFields)):
-            return li
-
-        qtyField = ''.join([s for s in li if s.lower() == 'qty'])
-
-        li = [[]] + li.to_dict('records')
-        def check(f,s):
-            if len(f) == 0 or ''.join([str for str in matchedFields if f[len(f)-1].get(str) != s.get(str)]) != '':
-                return f + [s]
-
-            f[len(f)-1][qtyField] = f[len(f)-1].get(qtyField) + s.get(qtyField)
-            return f
-
-        return reduce(check, li)
-    '''
+    DeleteTime = db.Column(server_default='getdate()')
 
     @classmethod
     def SummaryInfo(cls, data):
@@ -157,6 +91,7 @@ class TransData(erp):
             Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF')) # No data
 
         filters = [func.coalesce(cls.IsServiceItem,False)==False,cls.CostCenterCode==costCenterCode,
+                   cls.DeleteTime == None,
                    func.abs(func.round(func.coalesce(cls.Qty,0),6))>1/1000000]
         if len(itemcodes) > 0:
             filters.append(cls.ItemCode.in_(itemcodes))
@@ -173,9 +108,6 @@ class TransData(erp):
                                           func.round(func.sum(func.coalesce(cls.Qty,0)),6).label('stockQty'))
                            .group_by(cls.ItemCode)
                            .having(func.round(func.sum(func.coalesce(cls.Qty,0)),6) >1/1000000).statement,cls.getBind())
-
-
-
 
     #Batch cost
     @classmethod
@@ -235,7 +167,7 @@ class TransData(erp):
                 return
 
         # 检查tblTransData中OrderLineGuid重复
-        filters = [cls.OrderLineGuid.in_(orderLineGuids)]
+        filters = [cls.OrderLineGuid.in_(orderLineGuids),cls.DeleteTime==None]
         if str(cls).find('DailyTicket.DailyTicket')  > 0:  # 收入一天一个
             filters.append(cls.CostCenterCode == data[0].get('costCenterCode'))
             filters.append(cls.TransDate == data[0].get('transDate'))
@@ -264,6 +196,7 @@ class TransData(erp):
         if len(filters) == 2:
             filters = [or_(*filters)]
         filters.append(func.round(cls.Qty, 6) != 0)
+        filters.append(cls.DeleteTime==None)
 
         openning = getStr(data.get('openning','false')).lower() == 'true'
         startDate = getStr(data.get('startDate',''))
@@ -318,7 +251,8 @@ class TransData(erp):
         qry = cls.query.join(CostCenter, cls.CostCenterCode == CostCenter.CostCenterCode)
 
         fields = [CostCenter.Division, cls.CostCenterCode, Item.Category01,
-                  Item.Category02, Item.Category03,Item.Category04, cls.ItemCode, cls.ItemName]
+                  Item.Category02, Item.Category03,Item.Category04,
+                  cls.ItemCode, Item.ItemName.label('ItemName')]
         sumfields = []
         if not endDate: #现在查询期初
             sumfields = sumfields + [func.round(func.sum(cls.Qty), 6).label('Qty'),
@@ -334,7 +268,7 @@ class TransData(erp):
 
         if type == 'dailyporeceipt':
             qry = qry.join(Supplier, and_(CostCenter.Division == Supplier.Division,
-                                               cls.SupplierCode == Supplier.SupplierCode))
+                                          cls.SupplierCode == Supplier.SupplierCode))
         elif type == 'batch' or endDate: # 现在查询batch，或明细
             qry = qry.outerjoin(Supplier, and_(CostCenter.Division == Supplier.Division,
                                                cls.SupplierCode == Supplier.SupplierCode))

@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-from copy import copy
+
 from datetime import datetime
 
-from sqlalchemy import create_engine, Column, Integer, Numeric, Date
+from sqlalchemy import create_engine, Column, Integer
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import attributes, properties, sessionmaker, scoped_session
+from sqlalchemy.orm import  sessionmaker, scoped_session
 
 from apps.utils.functions import *
 from config import Config
@@ -26,33 +26,14 @@ class Log(Base):
     Site = Column()
     User = Column()
 
-    def __init__(self, guid): # d=None):
+    def __init__(self, guid,logger,level,method,UserIP,Site,User): # d=None):
         self.Guid = guid
-
-        '''
-        if not d:
-            return
-
-        fields = dir(self)
-
-        for k, v in d.items():
-            tmpkey = ''.join([f for f in fields if f.lower() == k.lower()])  # 不分大小写，找出对应的属性
-            if not tmpkey or not v or (tmpkey.lower() == 'id' and getNumber(v) < 1):  # 无值和 Id
-                continue
-
-            # Date和Numeric，数据要转换
-            prop = getattr(type(self), tmpkey)
-            if isinstance(prop, attributes.InstrumentedAttribute):
-                prop = prop.prop
-                if isinstance(prop, properties.ColumnProperty):
-                    t = prop.columns[0].type
-                    if isinstance(t, Numeric):
-                        v = getNumber(v)
-                    elif isinstance(t, Date):
-                        v = getDateTime(v)
-
-            setattr(self, tmpkey, self._wrap(v))
-        '''
+        self.logger = logger
+        self.level = level
+        self.method = method
+        self.UserIP = UserIP
+        if Site: self.Site = Site
+        if User: self.User = User
 
     def _wrap(self, value):
         if isinstance(value, (tuple, list, set, frozenset)):

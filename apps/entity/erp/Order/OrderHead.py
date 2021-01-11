@@ -38,30 +38,31 @@ class OrderHead(erp):
     lines = db.relationship('OrderLine', primaryjoin='OrderHead.HeadGuid == foreign(OrderLine.HeadGuid)',
                             lazy='joined')
 
-    @classmethod
-    def getConfigs(cls, costCenterCode, type, subtype, field):
-        df =  DataControlConfig.list(['PO', 'FoodPO'])
+    def getConfigs(self, costCenterCode, type, subtype, field):
+        if '_config' not in dir(self) or self._config.empty:
+            self._config =  DataControlConfig.list(['PO', 'FoodPO'])
+            if self._config.empty: return ''
+            DataFrameSetNan(self._config)
+            self._division = CostCenter.GetDivision(costCenterCode)
+
+        df = self._config[(self._config['Type'] == type) & (self._config['Val1'] == subtype)]
         if df.empty: return ''
-        df = df[(df['Type'] == type) & (df['Val1'] == subtype)]
-        if df.empty: return ''
 
-        DataFrameSetNan(df)
-        tmpdf = df[df['Val2'] == CostCenter.GetDivision(costCenterCode)]
-        if not tmpdf.empty:
-            df = tmpdf
+        tmpdf = df[df['Val2'] == self._division]
+        if tmpdf.empty:
+            tmpdf = df
 
-        return df.iloc[0][field]
+        return tmpdf.iloc[0][field]
 
-    @classmethod
-    def getFoodPODeadLine(cls, OrderType, OrderSubType, costCenterCode, date):
+    def getFoodPODeadLine(self, OrderType, OrderSubType, costCenterCode, date):
         if OrderType.lower() =='nofoood' or OrderSubType.lower() != 'normal':
             return None
 
         if isinstance(date,datetime.date):
             date = getDateTime(date)
-        deadline = getDateTime(date + ' ' + cls.getConfigs(costCenterCode,'FoodPO','DailyEndTime','Val3'))
+        deadline = getDateTime(date + ' ' + self.getConfigs(costCenterCode,'FoodPO','DailyEndTime','Val3'))
 
-        createTime = datetime.datetime.now() + datetime.timedelta(days=getInt(cls.getNextDays(costCenterCode)),minutes=1)
+        createTime = datetime.datetime.now() + datetime.timedelta(days=getInt(self.getNextDays(costCenterCode)),minutes=1)
         if deadline.date() > createTime.date():
             return None
 
@@ -70,13 +71,11 @@ class OrderHead(erp):
 
         return (deadline-createTime).seconds
 
-    @classmethod
-    def getNextDays(cls,costCenterCode):
-        return getInt(cls.getConfigs(costCenterCode,'FoodPO','NextDays','Val3'))
+    def getNextDays(self,costCenterCode):
+        return getInt(self.getConfigs(costCenterCode,'FoodPO','NextDays','Val3'))
 
-    @classmethod
-    def getPlanningPOWeeks(cls, costCenterCode):
-        return getInt(cls.getConfigs(costCenterCode, 'FoodPO', 'PlanningPOWeeks', 'Val3'))
+    def getPlanningPOWeeks(self, costCenterCode):
+        return getInt(self.getConfigs(costCenterCode, 'FoodPO', 'PlanningPOWeeks', 'Val3'))
 
     # 可以做周单的星期几
     @classmethod
@@ -84,38 +83,37 @@ class OrderHead(erp):
         return getWeekDay(cls.getConfigs(costCenterCode,'FoodPO','WeekDayToWeekPOs', 'Val3'))
 
     # 可以做几天前的补单和非s食品PO
-    @classmethod
-    def getEarliestDays(cls, costCenterCode):
-        return  getInt(cls.getConfigs(costCenterCode, 'PO', 'EarliestDays', 'Val3'))
+    def getEarliestDays(self, costCenterCode):
+        return  getInt(self.getConfigs(costCenterCode, 'PO', 'EarliestDays', 'Val3'))
 
     # NoFood:
     # Food: 补单，普通单
-    @classmethod
-    def dates(cls, costCenterCode, orderType):
+    def dates(self, costCenterCode, orderType):
         # 普通单的日期
         today = datetime.date.today()
         date = today
         if orderType.lower() == 'food':
-            date += datetime.timedelta(days=cls.getNextDays(costCenterCode))
+            date += datetime.timedelta(days=self.getNextDays(costCenterCode))
 
         workdates = Calendar.WorkDates()
         earLiestDate = sorted([d for d in workdates if d < date],
-                              reverse=True)[cls.getEarliestDays(costCenterCode)]
+                              reverse=True)[self.getEarliestDays(costCenterCode)]
         # earLiestDate = datetime.date.today() - datetime.timedelta(days=cls.getEarliestDays(costCenterCode))
         ret = {'EarliestDate': getDateTime(earLiestDate)}
 
         if orderType.lower() != 'food':
-            filters = [cls.CostCenterCode==costCenterCode,
-                       cls.Active==True, cls.OrderType==orderType,
-                       cls.OrderDate>=earLiestDate,
-                       ~cls.lines.any(func.abs(func.round(OrderLine.Qty+
+            filters = [OrderHead.CostCenterCode==costCenterCode,
+                       OrderHead.Active==True, self.OrderType==orderType,
+                       OrderHead.OrderDate>=earLiestDate,
+                       ~OrderHead.lines.any(func.abs(func.round(OrderLine.Qty+
                                                           func.coalesce(OrderLine.AdjQty,0)-
                                                           OrderLine.RemainQty,6))>0)]
-            tmp = cls.query.filter(*filters).with_entities(cls.OrderDate).distinct().order_by(cls.OrderDate).all()
+            tmp = OrderHead.query.filter(*filters).with_entities(OrderHead.OrderDate)\
+                .distinct().order_by(OrderHead.OrderDate).all()
             ret['dates'] = [{'date': getDateTime(d.OrderDate)} for d in tmp]
             return ret
 
-        deadline = cls.getFoodPODeadLine(orderType,'Normal',costCenterCode,date)
+        deadline = self.getFoodPODeadLine(orderType,'Normal',costCenterCode,date)
         if not deadline and deadline < 0: date = date + datetime.timedelta(days=1)
 
         dates2 = []
@@ -137,8 +135,8 @@ class OrderHead(erp):
         if not isSameWeek(today,tmp[1]):
             canDoNextWeek = True
 
-        startWeekDay = cls.getStartWeekDay(costCenterCode)
-        ppoweeks = cls.getPlanningPOWeeks(costCenterCode)
+        # startWeekDay = cls.getStartWeekDay(costCenterCode)
+        ppoweeks = self.getPlanningPOWeeks(costCenterCode)
         while(True):
             dates1.append({'date':getDateTime(date),'remark':remark})
 
@@ -157,27 +155,26 @@ class OrderHead(erp):
         ret['dates'] = dates1 + dates2
         return ret
 
-    @classmethod
-    def updatepo(cls, costCenterCode, headGuid, orderDate, orderType, orderSubType):
+    def updatepo(self, costCenterCode, headGuid, orderDate, orderType, orderSubType):
         if not orderDate:
             Error(lang('6AD2E6B1-CD3C-465F-9651-9929429D72A3'))
 
-        filters = [cls.Active==True, cls.CostCenterCode == costCenterCode,
-                   cls.OrderDate == orderDate, cls.OrderType == orderType,
-                   ~cls.lines.any(func.abs(func.round(func.coalesce(OrderLine.Qty, 0)
+        filters = [OrderHead.Active==True, OrderHead.CostCenterCode == costCenterCode,
+                   OrderHead.OrderDate == orderDate, OrderHead.OrderType == orderType,
+                   ~OrderHead.lines.any(func.abs(func.round(func.coalesce(OrderLine.Qty, 0)
                                                       + func.coalesce(OrderLine.AdjQty,0)
                                                       - func.coalesce(OrderLine.RemainQty, 0), 6)) > 0)]
         if orderSubType:
-            filters.append(cls.OrderSubType==orderSubType)
+            filters.append(OrderHead.OrderSubType==orderSubType)
         if headGuid:
-            filters.appends(cls.HeadGuid==headGuid)
+            filters.appends(OrderHead.HeadGuid==headGuid)
 
-        tmp = cls.query.filter(*filters).all()
+        tmp = OrderHead.query.filter(*filters).all()
 
         # 新增
         if not headGuid and len(tmp) == 0:
             ret = {'ID':0, 'OrderNo':DataControlConfig.getPONumber()}
-            deadline = cls.getFoodPODeadLine(orderType,orderSubType,costCenterCode, orderDate)
+            deadline = self.getFoodPODeadLine(orderType,orderSubType,costCenterCode, orderDate)
             if deadline: ret['DeadLine'] = deadline
 
             return ret
@@ -205,7 +202,7 @@ class OrderHead(erp):
             DataFrameSetNan(df)
             ret = {**ret,'PO':df.to_dict('records')}
 
-        deadline = cls.getFoodPODeadLine(orderType,orderSubType,costCenterCode, orderDate)
+        deadline = self.getFoodPODeadLine(orderType,orderSubType,costCenterCode, orderDate)
         if deadline:
             ret['DeadLine'] = deadline
         return ret

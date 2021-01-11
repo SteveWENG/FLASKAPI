@@ -9,6 +9,7 @@ from ..Stock import TransData
 class Stockin(TransData):
     type = 'Stockin'
 
+    '''
     @classmethod
     def save_check(cls, data, **kw):
         try:
@@ -26,3 +27,4 @@ class Stockin(TransData):
             return lang('AAD1B983-1252-46F5-8136-9CADC200822E') # Successfully save stockin
         except Exception as e:
             raise e
+    '''

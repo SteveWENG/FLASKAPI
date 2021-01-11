@@ -1,8 +1,10 @@
+from flask import g
 from flask_sqlalchemy import SQLAlchemy
 from contextlib import contextmanager
 import functools
 from sqlalchemy import inspect
 from sqlalchemy.orm import attributes, properties
+from sqlalchemy.orm.base import manager_of_class
 import pandas as pd
 
 from ..utils.functions import *
@@ -61,6 +63,21 @@ class BaseModel(db.Model):
                           for attr in state.attrs])
         return f"<User {attrs}>"
     '''
+
+    @classmethod
+    def LangColumn(cls,field):
+        def _col(lang):
+            column = '_' + field + lang.upper()
+            if column in dir(cls):
+                return getattr(cls, column)
+
+            setattr(cls, column, db.Column(column[1:]))
+            return getattr(cls, column)
+
+        try:
+            return _col(g.get('LangCode'))
+        except:
+            return _col('EN')
 
     def to_dict(self):
         return {c: getattr(self, c) for c in self.__dict__ if not c.startswith('_')} #.name self.__table__.columns}

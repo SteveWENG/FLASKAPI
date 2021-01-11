@@ -22,7 +22,7 @@ class AppUserData(erp):
     def apps(cls, userGuid, langCode):
         try:
             li = cls.__AppQuery(userGuid).with_entities(cls.AppGuid,Apps.PGuid, Apps.ReportGuid, Apps.Action,
-                                                        Apps.AppName(langCode).label('AppName'))\
+                                                        Apps.AppName.label('AppName'))\
                 .distinct().all()
             return [{'guid': l.AppGuid, 'name':l.AppName, 'pguid':getStr(l.PGuid),
                      'reportGuid':getStr(l.ReportGuid),'action':getStr(l.Action)}

@@ -3,10 +3,10 @@ from copy import copy
 from pandas import merge
 
 import pandas as pd
-from flask import g
-from sqlalchemy.ext.hybrid import hybrid_method
-from sqlalchemy.orm.base import manager_of_class
+from sqlalchemy.ext.hybrid import hybrid_method,hybrid_property
 
+
+from .LangMast import lang
 from ....utils.functions import *
 from ...erp import erp, db
 
@@ -16,14 +16,15 @@ class Apps(erp):
     Guid = db.Column()
     PGuid = db.Column()
     _AppName = db.Column('AppName')
-    _AppNameEN = db.Column('AppNameEN')
-    _AppNameZH = db.Column('AppNameZH')
+    # _AppNameEN = db.Column('AppNameEN')
+    # _AppNameZH = db.Column('AppNameZH')
     ReportGuid = db.Column()
     Action = db.Column()
     Sort = db.Column()
     ClassName = db.Column()
     Status = db.Column(db.Boolean)
 
+    '''
     @hybrid_method
     def AppName(cls, lang):
         column = '_AppName' + lang.upper()
@@ -31,12 +32,16 @@ class Apps(erp):
             return getattr(cls, column)
 
         return cls._AppName
+    '''
+
+    @hybrid_property
+    def AppName(self):
+        return self.LangColumn('AppName')
 
     @classmethod
     def ParentApps(cls, guid=None):
         li = pd.read_sql(cls.query.filter(cls.Status==True).
-                         with_entities(cls.Guid,
-                                       cls.AppName(g.get('LangCode','ZH')).label('AppName'),
+                         with_entities(cls.Guid, cls.AppName,
                                        cls.PGuid).order_by(cls.Sort).statement,
                          cls.getBind())
         if li.empty: return None

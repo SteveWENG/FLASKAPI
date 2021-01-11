@@ -27,5 +27,8 @@ class LangMast(erp):
 
         return li[0].TextZH if g.get('LangCode','') == 'ZH' else li[0].TextEN
 
-def lang(guid):
-    return LangMast.getText(guid)
+def lang(guid=None):
+    if guid:
+        return LangMast.getText(guid)
+
+    return g.get('LangCode','EN').upper()

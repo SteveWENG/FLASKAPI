@@ -7,6 +7,9 @@ import math
 
 import pandas as pd
 from pandas import DataFrame
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import mapper
+
 
 def getOrderNo():
     return datetime.datetime.now().strftime('%y%m%d%H%M%S') + str(random.randint(1,10000) + 10000)[1:]
@@ -123,6 +126,20 @@ def DataFrameSetNan(df):
         df[s].fillna(0 if s in df.select_dtypes(include='number').columns else '', inplace=True)
 
     return df
+
+
+def getModel(table, engine):
+    """根据name创建并return一个新的model类
+    name:数据库表名
+    engine:create_engine返回的对象，指定要操作的数据库连接，from sqlalchemy import create_engine
+    """
+    Base = declarative_base()
+    Base.metadata.reflect(engine)
+    # table = Base.metadata.tables[name]
+    t = type(table.name,(object,),dict())
+    mapper(t, table)
+    Base.metadata.clear()
+    return t
 
 def Error(error):
     raise RuntimeError(error)

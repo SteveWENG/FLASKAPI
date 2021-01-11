@@ -38,8 +38,9 @@ class DailyConsumption(Stockout):
     def save_check(cls, data, **kw):
         # 只能一次消耗
         tmp = cls.query.filter(cls.CostCenterCode==data[0].get('costCenterCode'),
-                            cls.TransDate==data[0].get('transDate'),
-                            cls.BusinessType==cls.type)\
+                               cls.DeleteTime == None,
+                               cls.TransDate==data[0].get('transDate'),
+                               cls.BusinessType==cls.type)\
             .with_entities(func.count(distinct(cls.TransGuid))).first()
         if tmp[0] > 1:
             Error(lang('7F6D4A6B-8F9B-425E-82CE-5E4D6FC8A147')
