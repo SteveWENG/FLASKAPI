@@ -15,7 +15,7 @@ class UserHelper:
     def Rights(data):
         try:
             user = UserMast.login(data.get('userName',''),data.get('passWord',''))
-            apps = AppUserData.apps(user.Guid, data.get('langCode',''))
+            apps = AppUserData.apps(user.Guid)
             return {
                 'userGuid': user.Guid,
                 'account': user.UserName,
@@ -65,7 +65,7 @@ class UserHelper:
                     dic[s] = [x for x in tmp]
 
             if dataType == '' or dataType == 'costcenter':
-                dic['costcenter'] = CostCenter.Sites(dic.get('company'),dic.get('costcenter')) # CCMast.ShowSites(dic.get('company'),dic.get('costcenter')) # CCMast.ShowSites
+                dic['costcenter'] = CostCenter.Sites(dic.get('company'),dic.get('costcenter'),dic.get('costcentercategory')) # CCMast.ShowSites(dic.get('company'),dic.get('costcenter')) # CCMast.ShowSites
             if (dataType == '' or dataType == 'company') and 'company' in types and dic.get('company')==[]: # 全部公司
                 dic['company'] =  CostCenter.Division()# CCMast.ShowDB()
 

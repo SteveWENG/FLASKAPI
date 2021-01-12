@@ -14,15 +14,21 @@ class CostCenter(erp):
     SiteGuid = db.Column()
     ExactWarehouse = db.Column()
     StartDate = db.Column('Load_Time',db.Date)
+    ServiceCategory = db.Column()
 
     @classmethod
-    def Sites(cls, divisions=None, costCenterCodes=None):
+    def Sites(cls, divisions=None, costCenterCodes=None, serviceCategories=None):
         filter = []
-        if divisions:
-            filter.append(cls.Division.in_(divisions))
-        if costCenterCodes:
-            filter.append(cls.CostCenterCode.in_(costCenterCodes))
-        if len(filter) == 2:
+        if divisions !=[] and costCenterCodes != [] and serviceCategories != []:
+            if divisions:
+                filter.append(cls.Division.in_(divisions))
+            if costCenterCodes:
+                filter.append(cls.CostCenterCode.in_(costCenterCodes))
+            if serviceCategories:
+                filter.append(cls.ServiceCategory.in_(serviceCategories))
+
+        #if filter == [True]: filter = []
+        if len(filter) > 1:
             filter = [or_(*filter)]
         filter.append(cls.StartDate<=datetime.datetime.now())
         tmp = cls.query.filter(*filter).with_entities(cls.Division,cls.CostCenterCode, cls.SiteGuid,cls.ExactWarehouse)\

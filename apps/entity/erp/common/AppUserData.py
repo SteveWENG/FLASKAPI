@@ -19,7 +19,7 @@ class AppUserData(erp):
     Status = db.Column(db.Boolean)
 
     @classmethod
-    def apps(cls, userGuid, langCode):
+    def apps(cls, userGuid):
         try:
             li = cls.__AppQuery(userGuid).with_entities(cls.AppGuid,Apps.PGuid, Apps.ReportGuid, Apps.Action,
                                                         Apps.AppName.label('AppName'))\

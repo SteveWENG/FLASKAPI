@@ -58,7 +58,7 @@ class StockHelper:
             codes = [getStr(s) for s in data.get('costCenterCodes','').split(',') if getStr(s)]
             divisions = [getStr(s) for s in data.get('divisions','').split(',') if getStr(s)]
             if divisions:
-                codes = [l.get('CostCenterCode','') for l in CostCenter.Sites(divisions,None)] #CCMast.ShowSites(divisions,None)]
+                codes = [l.get('CostCenterCode','') for l in CostCenter.Sites(divisions)] #CCMast.ShowSites(divisions,None)]
             tmpcodes = TransData.query.filter(TransData.CostCenterCode.in_(codes),
                                               TransData.BusinessType=='OpenningStock')\
                 .with_entities(TransData.CostCenterCode).distinct().all()
