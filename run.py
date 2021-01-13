@@ -28,6 +28,8 @@ def after_request(response):
 
     if response.status_code == 200:
         app.logger.info('Completed')
+        g.LogQueue.put(None)
+        app.logger.info('Exit')
 
     return response
 
