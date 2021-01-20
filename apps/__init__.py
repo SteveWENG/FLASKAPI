@@ -8,7 +8,7 @@ from .Log.dbHandler import dbHandler
 from .entity import db
 from config import Config
 
-blueprints = ['wechat', 'sfeed', 'stock','user','order','common']
+blueprints = ['wechat', 'sfeed', 'stock','user','order','menuorder','common']
 
 # 函数工厂
 def create_app():

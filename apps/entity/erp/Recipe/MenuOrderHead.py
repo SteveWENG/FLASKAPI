@@ -3,7 +3,7 @@
 import pandas as pd
 from flask import g
 from pandas import merge
-from sqlalchemy import Date, func
+from sqlalchemy import Date, func, and_
 
 from .ItemClass import ItemClass
 from .MenuOrderRM import MenuOrderRM
@@ -39,13 +39,17 @@ class MenuOrderHead(erp):
             dates['day'+str(n)] = startDate + datetime.timedelta(days=n)
         return dates
 
-    def list(self,costCenterCode,startDate, endDate):
+    def list(self,costCenterCode,startDate):
         dates = self._dates(getDateTime(startDate))
+        endDate = getDateTime(getDateTime(startDate) + datetime.timedelta(days=6))
 
         filters = [MenuOrderHead.CostCenterCode==costCenterCode,
                    MenuOrderHead.RequireDate>=startDate,
                    MenuOrderHead.RequireDate<=endDate]
         sql = MenuOrderHead.query.filter(*filters)\
+            .join(CONTRACT,and_(MenuOrderHead.OrderLineGuid==CONTRACT.guid,
+                                MenuOrderHead.RequireDate>=CONTRACT.StartDate,
+                                MenuOrderHead.RequireDate<=CONTRACT.EndDate))\
             .outerjoin(MenuOrderFG,MenuOrderHead.HeadGuid==MenuOrderFG.HeadGuid)\
             .outerjoin(Product,MenuOrderFG.ItemGuid==Product.GUID) \
             .outerjoin(Item, MenuOrderFG.ItemCode == Item.ItemCode) \
@@ -138,10 +142,15 @@ class MenuOrderHead(erp):
 
             for fg in l[date[0][0]]:
                 tmpfg = MenuOrderFG(fg)
+                tmpfg.HeadGuid = None
                 if not tmph.Id or not tmpfg.Id:
                     tmpfg.Id = None
                     tmpfg.FGGuid = getGUID()
+                for rm in tmpfg.RMs:
+                    if not tmpfg.Id:  rm.Id = None
+                    rm.FGGuid = None
 
+                '''
                 if fg.get('RMs'):
                     tmpfg.RMs = []
                     for rm in fg['RMs']:
@@ -150,7 +159,7 @@ class MenuOrderHead(erp):
                             tmprm.Id = None
 
                         tmpfg.RMs.append(tmprm)
-
+                '''
                 tmph.FGs.append(tmpfg)
 
             tmpg.append(tmph)

@@ -26,7 +26,7 @@ class BaseModel(db.Model):
         fields = dir(self) #所有属性
         # tablename = self.__tablename__ if self.__tablename__ else self.__class__.__name__.lower()
         # table = db.Model.metadata.tables[tablename]
-
+        hid = None
         for k, v in d.items():
             tmpkey = ''.join([f for f in fields if f.lower() == k.lower()]) #不分大小写，找出对应的属性
             if tmpkey=='' or v==None or (not keepEmpty and  getStr(v)=='') \
@@ -34,11 +34,13 @@ class BaseModel(db.Model):
                 continue
 
             if not v: v = None
+            if tmpkey.lower() == 'id': hid = getNumber(v)
             #Date和Numeric，数据要转换
             prop = getattr(type(self),tmpkey)
             if not isinstance(prop, attributes.InstrumentedAttribute):
                 continue
 
+            '''
             prop = prop.prop
             if not isinstance(prop, properties.ColumnProperty):
                 continue
@@ -48,11 +50,28 @@ class BaseModel(db.Model):
                 v = getNumber(v)
             elif isinstance(t,db.Date):
                 v = getDateTime(v)
+            '''
 
-            setattr(self, tmpkey, self._wrap(v))
+            setattr(self, tmpkey, self._wrap(prop,v,hid))
 
-    def _wrap(self, value):
-        if isinstance(value, (tuple, list, set, frozenset)): 
+    def _wrap(self,prop,value,HId):
+        prop = prop.prop
+        if isinstance(prop,properties.RelationshipProperty):
+            if isinstance(value, (tuple, list, set, frozenset)):
+                return [prop.mapper.class_({k:v for k,v in val.items() if HId or k.lower() != 'id'})
+                                            for val in value]
+
+        if isinstance(prop, properties.ColumnProperty):
+            t = prop.columns[0].type
+            if isinstance(t, db.Numeric):
+                value = getNumber(value)
+            elif isinstance(t, db.Date):
+                value = getDateTime(value)
+
+            return self(value) if isinstance(value, dict) else value
+
+    def __wrap(self, value):
+        if isinstance(value, (tuple, list, set, frozenset)):
             return type(value)([self._wrap(v) for v in value])
         
         return self(value) if isinstance(value, dict) else value
