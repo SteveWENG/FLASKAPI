@@ -22,12 +22,12 @@ def getGUID():
 
     return str(uuid.uuid1()).replace('-', '')[0:20] + s
 
-def getdict(obj):
+def getdict(obj, KeepKeys=[]):
     if isinstance(obj,DataFrame):
-        return [{k: getVal(v) for k,v in l.items() if v or (isinstance(v,bool) and getStr(v) !='') }
+        return [{k: getVal(v) for k,v in l.items() if k in KeepKeys or  v or (isinstance(v,bool) and getStr(v) !='') }
                 for l in obj.to_dict('records')]
     if isinstance(obj,dict):
-        return {k:v for k,v in obj.items() if pd.notnull(v)}
+        return {k:v for k,v in obj.items() if k in KeepKeys or pd.notnull(v)}
 
     return [{k: getVal(getattr(l, k)) for k in l.keys() if getattr(l, k)} for l in obj]
 
@@ -103,6 +103,8 @@ def getNumber(d):
     return Decimal(str(d))
 
 def getVal(s):
+    if isinstance(s,datetime.date):
+        return getDateTime(s)
     if isinstance(s,str):
         return getStr(s)
     if isinstance(s,bool):
@@ -111,8 +113,7 @@ def getVal(s):
         return getInt(s)
     if isinstance(s,Decimal):
         return float(getNumber(s))
-    if isinstance(s,datetime.date):
-        return getDateTime(s)
+
     if s == None:
         return getStr(s)
 
@@ -127,6 +128,13 @@ def DataFrameSetNan(df):
 
     return df
 
+def DataFrameDoubleColName(df):
+    cols = pd.Series(df.columns)
+    for dup in cols[cols.duplicated()].unique():
+        cols[cols[cols == dup].index.values.tolist()] = [dup + '_' + str(i) if i != 0 else dup
+                                                         for i in range(sum(cols == dup))]
+    df.columns = cols
+    return df
 
 def getModel(table, engine):
     """根据name创建并return一个新的model类

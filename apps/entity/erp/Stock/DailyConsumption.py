@@ -5,7 +5,7 @@ from pandas import merge
 from .Stockout import Stockout
 from ....utils.functions import Error
 from ..common.LangMast import lang
-from ..common.Item import Item
+from ..Item import Item
 
 class DailyConsumption(Stockout):
     type = 'DailyConsumption'

@@ -9,7 +9,7 @@ from ..Order.OrderLine import OrderLine
 from ....utils.functions import *
 from .Stockin import Stockin
 from ..common.LangMast import lang
-from ..common.Item import Item
+from ..Item import Item
 
 
 class POStockin(Stockin):

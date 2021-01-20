@@ -36,14 +36,18 @@ class BaseModel(db.Model):
             if not v: v = None
             #Date和Numeric，数据要转换
             prop = getattr(type(self),tmpkey)
-            if isinstance(prop, attributes.InstrumentedAttribute):
-                prop = prop.prop
-                if isinstance(prop, properties.ColumnProperty):
-                    t = prop.columns[0].type
-                    if isinstance(t,db.Numeric):
-                        v = getNumber(v)
-                    elif isinstance(t,db.Date):
-                        v = getDateTime(v)
+            if not isinstance(prop, attributes.InstrumentedAttribute):
+                continue
+
+            prop = prop.prop
+            if not isinstance(prop, properties.ColumnProperty):
+                continue
+
+            t = prop.columns[0].type
+            if isinstance(t,db.Numeric):
+                v = getNumber(v)
+            elif isinstance(t,db.Date):
+                v = getDateTime(v)
 
             setattr(self, tmpkey, self._wrap(v))
 
@@ -80,7 +84,28 @@ class BaseModel(db.Model):
             return _col('EN')
 
     def to_dict(self):
-        return {c: getattr(self, c) for c in self.__dict__ if not c.startswith('_')} #.name self.__table__.columns}
+        ret = {}
+        for k in self.__dict__:
+            if k.startswith('_'): continue
+
+            v = getattr(self, k)
+
+            if isinstance(v,list):
+                ret[k] = [l.to_dict() for l in v]
+                continue
+
+            if isinstance(v,BaseModel):
+                ret.update(v.to_dict())
+                continue
+
+            ret[k] = getVal(v)
+
+        return ret
+        '''
+        return {c: getattr(self, c) if not isinstance(getattr(self, c),list)
+                                    else [l.to_dict() for l in getattr(self, c)]
+                for c in self.__dict__ if not c.startswith('_')} #.name self.__table__.columns}
+        '''
 
     @classmethod
     def getBind(cls):
@@ -90,7 +115,7 @@ class BaseModel(db.Model):
     @contextmanager
     def adds(cls, lines):
         try:
-            tmp = [cls(l) for l in lines]
+            tmp = [l if isinstance(l,cls) else cls(l) for l in lines]
             with SaveDB() as session:
                 session.add_all(tmp)
                 yield session

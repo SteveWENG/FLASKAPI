@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
 import pandas as pd
-from ..Item import BI_DM, db
+from ...erp import erp, db
 from ..common.CCMast import CCMast
 
-class ItemMast(BI_DM):
+class ItemMast(erp):
     __tablename__= 'DM_D_DIGIMENU_STDPURCHASEPRICE'
 
     Division = db.Column()

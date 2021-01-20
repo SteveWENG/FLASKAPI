@@ -16,8 +16,8 @@ class DailyTicket(Stockout):
             Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
 
         df = CONTRACT.list(costCenterCode,date)
-        df['LineNum'] = df['LineNum'].apply(str)
-        df.rename(columns={'LineNum':'orderLineGuid','UnitPrice':'itemPrice','Unit':'uom',
+        # df['LineNum'] = df['LineNum'].apply(str)
+        df.rename(columns={'guid':'orderLineGuid','UnitPrice':'itemPrice','Unit':'uom',
                            'ItemCode':'itemCode','ItemName':'itemName'},inplace=True)
 
         return [{**d,'isServiceItem': True} for d in getdict(df)]

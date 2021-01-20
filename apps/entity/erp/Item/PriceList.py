@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 from datetime import date
 
-from ..Item import BI_DM, db
+from ...erp import erp, db
 
-class PriceList(BI_DM):
+class PriceList(erp):
     __tablename__ = 'DM_D_ERP_PurchaseAgreement_NEW'
 
     Company = db.Column()

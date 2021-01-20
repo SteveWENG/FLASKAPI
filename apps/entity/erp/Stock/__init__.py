@@ -5,7 +5,7 @@ from sqlalchemy import func, select, and_, or_, case, distinct
 import pandas as pd
 from pandas import merge
 
-from ..common.Item import Item
+from ..Item import Item
 from ..common.CostCenter import CostCenter
 from ..common.Supplier import Supplier
 from ....utils.functions import *

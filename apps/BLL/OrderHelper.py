@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
 from ..entity.erp.Order.OrderHead import OrderHead
+from ..entity.erp.Recipe.MenuOrderHead import MenuOrderHead
+
 
 class OrderHelper:
 
@@ -17,3 +19,12 @@ class OrderHelper:
     @staticmethod
     def save(data):
         return OrderHead(data).save(data)
+
+    @staticmethod
+    def MenuOrder(data):
+        return MenuOrderHead().list(data.get('costCenterCode', ''),
+                                    data.get('startDate', ''),data.get('endDate', ''))
+
+    @staticmethod
+    def SaveMenuOrder(data):
+        return MenuOrderHead().save(data)

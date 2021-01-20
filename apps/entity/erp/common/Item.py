@@ -6,7 +6,7 @@ from ...erp import erp, db
 import pandas as pd
 
 class Item(erp):
-    __tablename__ = 'DM_D_ERP_ITEM'
+    __tablename__ = 'DM_D_ERP_ITEM1'
 
     ItemCode = db.Column()
     #ItemName = db.Column('ItemName_ZH')

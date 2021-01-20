@@ -18,3 +18,11 @@ def updatepo():
 @bp.route('/save', methods=['POST'])
 def save():
     return webapi(lambda dic: OrderHelper.save(dic))
+
+@bp.route('/menuorder',methods=['POST'])
+def MenuOrder():
+    return webapi(lambda dic: OrderHelper.MenuOrder(dic))
+
+@bp.route('/savemenuorder',methods=['POST'])
+def SaveMenuOrder():
+    return webapi(lambda dic: OrderHelper.SaveMenuOrder(dic))
