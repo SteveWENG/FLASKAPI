@@ -51,7 +51,7 @@ class MenuOrderHead(erp):
                                 MenuOrderHead.RequireDate>=CONTRACT.StartDate,
                                 MenuOrderHead.RequireDate<=CONTRACT.EndDate))\
             .outerjoin(MenuOrderFG,MenuOrderHead.HeadGuid==MenuOrderFG.HeadGuid)\
-            .outerjoin(Product,MenuOrderFG.ItemGuid==Product.GUID) \
+            .outerjoin(Product,MenuOrderFG.ItemGuid==Product.Guid) \
             .outerjoin(Item, MenuOrderFG.ItemCode == Item.ItemCode) \
             .with_entities(MenuOrderHead.Id.label('HeadId'),MenuOrderHead.HeadGuid,MenuOrderHead.OrderLineGuid,
                            MenuOrderHead.RequireDate,MenuOrderHead.MealQty,MenuOrderHead.MealPrice,
@@ -73,11 +73,11 @@ class MenuOrderHead(erp):
 
         tmp = ItemClass.list()
         tmp['guid'] = tmp.apply(lambda x:  [x[c] for c in
-                                            sorted([k for k in tmp.columns if 'guid' in k],reverse=True)
-                                            if x[c]][0],axis=1)
+                                            sorted([k for k in tmp.columns if 'guid' in k])
+                                            if x[c]][-1],axis=1)
         tmp['ClassName'] = tmp.apply(lambda x: '/'.join([x[c] for c in
                                                 sorted([k for k in tmp.columns if 'ClassName' in k])
-                                                if x[c]]), axis=1)
+                                                if x[c]][:2]), axis=1)
         df = merge(df,tmp,how='left',left_on='CategoriesClassGUID',right_on='guid' )
         DataFrameSetNan(df)
 
@@ -85,42 +85,54 @@ class MenuOrderHead(erp):
             .join(MenuOrderHead, MenuOrderFG.HeadGuid == MenuOrderHead.HeadGuid).filter(*filters)\
             .join(Item, MenuOrderRM.ItemCode==Item.ItemCode) \
             .with_entities(MenuOrderRM.Id,MenuOrderRM.FGGuid, MenuOrderRM.ItemCode, Item.ItemName,MenuOrderRM.ItemUnit,
-                           MenuOrderRM.ItemCost, MenuOrderRM.RequiredQty,MenuOrderRM.PurBOMConversion,
-                           MenuOrderRM.PurchasePolicy).all()
+                           MenuOrderRM.ItemCost, MenuOrderRM.RequiredQty,MenuOrderRM.RequiredQty.label('RequiredQtyBak'),
+                           MenuOrderRM.PurBOMConversion,MenuOrderRM.PurchasePolicy).all()
         rms = getdict(rms)
 
         ret = []
-        for name, group in df.groupby(by=['SOItemName', 'SOItemDesc','OrderLineGuid','ClassName']):
-            tmpg = []
-            for k,v in dates.items():
-                if v < group.iloc[0]['StartDate'] or v > group.iloc[0]['EndDate']:
-                    continue
+        for name1, group1 in df.groupby(by=['SOItemName', 'SOItemDesc','OrderLineGuid']):
 
-                tmp = pd.DataFrame([{k: {'MealQty':group.iloc[0]['MealQty'],'MealPrice':group.iloc[0]['MealPrice']}}])
+            #加菜
+            tmp = {k: {'MealQty':group1.iloc[0]['MealQty'],'MealPrice':group1.iloc[0]['MealPrice']}
+                    for k,v in dates.items() if v>=group1.iloc[0]['StartDate']
+                                                and v<=group1.iloc[0]['EndDate']}
 
-                g = group.loc[group['RequireDate']==v,
-                              ['HeadId','HeadGuid','Id','FGGuid',
-                               'ItemGuid','ItemCode','ItemName','ItemCost','ItemColor','ItemUnit',
-                               'RequiredQty','PurchasePolicy']]
-                if g.empty:
+            tmp['ItemName'] = name1[0]
+            tmp['OrderLineGuid'] = name1[2]
+            if name1[1]: tmp['ItemDesc'] = name1[1]
+            ret.append(tmp)
+
+            if group1.empty: continue
+
+            cols = ['HeadId','HeadGuid','Id','ItemGuid','ItemCode','ItemName',
+                    'ItemCost','ItemColor','ItemUnit','RequiredQty','PurchasePolicy']
+            for name2,group2 in group1.groupby(by=['ClassName']):
+                tmpg = []
+                ignore = True # 没有记录
+                for k,v in {k:v for k,v in dates.items()
+                            if v>=group1.iloc[0]['StartDate']
+                               and v<=group1.iloc[0]['EndDate']}.items():
+                    g = group2[group2['RequireDate']==v]
+                    if g.empty:
+                        tmpg.append(pd.DataFrame([{k: ""}]))
+                        continue
+
+                    ignore = False
+                    tmp = pd.DataFrame({k: g.apply(lambda x: {**{c: getVal(x[c]) for c in cols if x[c]},
+                                                              'RMs': [{k: v for k, v in l.items()}
+                                                                      for l in rms if l['FGGuid'] == x['FGGuid']]},
+                                                   axis=1)}).reset_index(drop=True)
                     tmpg.append(tmp)
-                    continue
+                if ignore: continue
 
-                tmp = tmp.append(pd.DataFrame({k: g.apply(lambda x: {**{c:getVal(x[c]) for c in g.columns if x[c]},
-                                                          'RMs':[{k:v for k,v in l.items() if k not in ['FGGuid']}
-                                                                 for l in rms if l['FGGuid']==x['FGGuid']]},
-                                               axis=1)})).reset_index(drop=True)
-                tmpg.append(tmp)
+                tmp = pd.concat(tmpg,axis=1)
+                tmp['ItemName'] = name1[0]
+                tmp['OrderLineGuid'] = name1[2]
+                if name1[1]: tmp['ItemDesc'] = name1[1]
+                if name2: tmp['ClassName'] = name2
 
-            tmp = pd.concat(tmpg,axis=1)
-            tmp['ItemName'] = name[0]
-            tmp['OrderLineGuid'] = name[2]
-            if name[1]: tmp['ItemDesc'] = name[1]
-            if name[3]: tmp['ClassName'] = name[3]
-
-            DataFrameSetNan(tmp)
-            tmpdict = getdict(tmp,tmp.columns)
-            ret = ret + tmpdict
+                DataFrameSetNan(tmp)
+                ret = ret + getdict(tmp, tmp.columns)
 
         return ret
 
@@ -141,14 +153,17 @@ class MenuOrderHead(erp):
                 tmph.HeadGuid = getGUID()
 
             for fg in l[date[0][0]]:
-                tmpfg = MenuOrderFG(fg)
-                tmpfg.HeadGuid = None
+                tmpfg = MenuOrderFG({k:v if k.lower() != 'rms' else
+                                            [{x:y for x,y in l.items() if x.lower() != 'fgguid'} for l in v]
+                                     for k,v  in fg.items() if k.lower() != 'headguid'})
+
+                tmpfg.CreatedUser = g.get('User')
                 if not tmph.Id or not tmpfg.Id:
                     tmpfg.Id = None
                     tmpfg.FGGuid = getGUID()
                 for rm in tmpfg.RMs:
                     if not tmpfg.Id:  rm.Id = None
-                    rm.FGGuid = None
+                    rm.CreatedUser = g.get('User')
 
                 '''
                 if fg.get('RMs'):

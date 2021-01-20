@@ -2,7 +2,6 @@
 
 from ..entity.erp.Recipe.MenuOrderHead import MenuOrderHead
 
-
 class MenuOrderHelper:
 
     @staticmethod
