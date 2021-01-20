@@ -42,7 +42,6 @@ class MenuOrderHead(erp):
     def list(self,costCenterCode,startDate, endDate):
         dates = self._dates(getDateTime(startDate))
 
-        #df = pd.concat([df, pd.DataFrame(columns=dates.keys())])
         filters = [MenuOrderHead.CostCenterCode==costCenterCode,
                    MenuOrderHead.RequireDate>=startDate,
                    MenuOrderHead.RequireDate<=endDate]
@@ -111,9 +110,9 @@ class MenuOrderHead(erp):
 
             tmp = pd.concat(tmpg,axis=1)
             tmp['ItemName'] = name[0]
-            tmp['ItemDesc'] = name[1]
             tmp['OrderLineGuid'] = name[2]
-            tmp['ClassName'] = name[3]
+            if name[1]: tmp['ItemDesc'] = name[1]
+            if name[3]: tmp['ClassName'] = name[3]
 
             DataFrameSetNan(tmp)
             tmpdict = getdict(tmp,tmp.columns)
