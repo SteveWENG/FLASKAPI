@@ -29,12 +29,15 @@ class DataControlConfig(erp):
     EndDate = db.Column(db.Date)
 
     @classmethod
-    def list(cls,types):
+    def list(cls,types, date=None):
         if not types:
             Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))
 
-        filters = [func.coalesce(cls.StartDate,'2000-1-1')<=datetime.date.today(),
-                   func.coalesce(cls.EndDate,'2222-12-31')>=datetime.date.today()]
+        if not date:
+            date = datetime.date.today()
+
+        filters = [func.coalesce(cls.StartDate,'2000-1-1')<=date,
+                   func.coalesce(cls.EndDate,'2222-12-31')>=date]
 
         if isinstance(types,str):
             filters.append(cls.Type==types)

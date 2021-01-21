@@ -102,6 +102,20 @@ class BaseModel(db.Model):
         except:
             return _col('EN')
 
+    @classmethod
+    def getColumn(cls, field):
+        def _col(lang=None):
+            column = '_' + field
+            if lang: column += lang.upper()
+
+            if column in dir(cls):
+                return getattr(cls, column)
+
+            setattr(cls, column, db.Column(column[1:]))
+            return getattr(cls, column)
+
+        return _col()
+
     def to_dict(self):
         ret = {}
         for k in self.__dict__:

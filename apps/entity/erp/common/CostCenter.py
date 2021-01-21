@@ -12,9 +12,8 @@ class CostCenter(erp):
     CostCenterCode = db.Column()
     Division = db.Column()
     SiteGuid = db.Column()
-    ExactWarehouse = db.Column()
-    StartDate = db.Column('Load_Time',db.Date)
     ServiceCategory = db.Column()
+    ExactWarehouse = db.Column()
 
     @classmethod
     def Sites(cls, divisions=None, costCenterCodes=None, serviceCategories=None):
@@ -41,9 +40,13 @@ class CostCenter(erp):
 
     @classmethod
     def GetDivision(cls, costCenterCode):
-        qry = cls.query.filter(cls.CostCenterCode == costCenterCode,cls.StartDate<=datetime.date.today())\
+        qry = cls.query.filter(cls.CostCenterCode == costCenterCode)\
             .with_entities(cls.Division).first()
         if not qry:
             Error(lang('08FED174-9DF0-4F27-B5AE-B495295179B8') % costCenterCode)
 
         return qry[0]
+
+    @classmethod
+    def GetServiceCategory(cls,costCenterCode):
+        return cls.query.filter(cls.CostCenterCode == costCenterCode).first().ServiceCategory

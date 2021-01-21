@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+
+import pandas as pd
+
+from ..Item.PriceList import PriceList
 from ..common.CostCenter import CostCenter
 from ...erp import erp, db
 from .ItemBOM import ItemBOM
@@ -20,7 +24,12 @@ class Product(erp):
     def list(cls,division=None, costCenterCode=None, date=None):
         if not division:
             division = CostCenter.GetDivision(costCenterCode)
-        tmp = cls.query.filter(cls.Division==division, cls.Status=='active',
-                               cls.BOMs.any(ItemBOM.DeleteTime==None))\
-            .with_entities(cls.Guid,cls.BOMs).all()
+        items = PriceList.list(division,costCenterCode,date,'Food')
+        sql = cls.query.filter(cls.Division==division, cls.Status=='active',
+                               ItemBOM.DeleteTime==None)\
+            .join(ItemBOM,cls.Guid==ItemBOM.ProductGuid)\
+            .with_entities(cls.Guid.label('ProductGuid'),cls.ItemCode.label('ProductCode'),
+                           cls.ItemName.label('ProductName'),ItemBOM.ItemCode,
+                           ItemBOM.OtherName,ItemBOM.Qty)
+        df = pd.read_sql(sql.statement,cls.getBind())
         x = 1
