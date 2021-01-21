@@ -39,21 +39,25 @@ class MenuOrderHead(erp):
             dates['day'+str(n)] = startDate + datetime.timedelta(days=n)
         return dates
 
-    def list(self,costCenterCode,startDate):
-        dates = self._dates(getDateTime(startDate))
+    def _list(self,costCenterCode,startDate):
         endDate = getDateTime(getDateTime(startDate) + datetime.timedelta(days=6))
 
-        filters = [MenuOrderHead.CostCenterCode==costCenterCode,
-                   MenuOrderHead.RequireDate>=startDate,
-                   MenuOrderHead.RequireDate<=endDate]
-        sql = MenuOrderHead.query.filter(*filters)\
-            .join(CONTRACT,and_(MenuOrderHead.OrderLineGuid==CONTRACT.guid,
+        filters = [MenuOrderHead.CostCenterCode == costCenterCode,
+                   MenuOrderHead.RequireDate >= startDate,
+                   MenuOrderHead.RequireDate <= endDate]
+        return MenuOrderHead.query.filter(*filters),filters,endDate
+
+    def list(self,costCenterCode,startDate):
+        dates = self._dates(getDateTime(startDate))
+        sql,filters,endDate = self._list(costCenterCode,startDate)
+
+        sql = sql.join(CONTRACT,and_(MenuOrderHead.OrderLineGuid==CONTRACT.guid,
                                 MenuOrderHead.RequireDate>=CONTRACT.StartDate,
                                 MenuOrderHead.RequireDate<=CONTRACT.EndDate))\
             .outerjoin(MenuOrderFG,MenuOrderHead.HeadGuid==MenuOrderFG.HeadGuid)\
             .outerjoin(Product,MenuOrderFG.ItemGuid==Product.Guid) \
             .outerjoin(Item, MenuOrderFG.ItemCode == Item.ItemCode) \
-            .with_entities(MenuOrderHead.Id.label('HeadId'),MenuOrderHead.HeadGuid,MenuOrderHead.OrderLineGuid,
+            .with_entities(MenuOrderHead.OrderLineGuid,
                            MenuOrderHead.RequireDate,MenuOrderHead.MealQty,MenuOrderHead.MealPrice,
                            MenuOrderFG.Id,MenuOrderFG.FGGuid,MenuOrderFG.ItemGuid,
                            func.coalesce(MenuOrderFG.ItemCode,Product.ItemCode).label('ItemCode'),
@@ -84,8 +88,9 @@ class MenuOrderHead(erp):
         rms = MenuOrderRM.query.join(MenuOrderFG, MenuOrderRM.FGGuid == MenuOrderFG.FGGuid) \
             .join(MenuOrderHead, MenuOrderFG.HeadGuid == MenuOrderHead.HeadGuid).filter(*filters)\
             .join(Item, MenuOrderRM.ItemCode==Item.ItemCode) \
-            .with_entities(MenuOrderRM.Id,MenuOrderRM.FGGuid, MenuOrderRM.ItemCode, Item.ItemName,MenuOrderRM.ItemUnit,
-                           MenuOrderRM.ItemCost, MenuOrderRM.RequiredQty,MenuOrderRM.RequiredQty.label('RequiredQtyBak'),
+            .with_entities(MenuOrderRM.Id,MenuOrderRM.FGGuid, MenuOrderRM.ItemCode,
+                           Item.ItemName,MenuOrderRM.ItemUnit,
+                           MenuOrderRM.ItemCost, MenuOrderRM.RequiredQty,
                            MenuOrderRM.PurBOMConversion,MenuOrderRM.PurchasePolicy).all()
         rms = getdict(rms)
 
@@ -104,8 +109,9 @@ class MenuOrderHead(erp):
 
             if group1.empty: continue
 
-            cols = ['HeadId','HeadGuid','Id','ItemGuid','ItemCode','ItemName',
-                    'ItemCost','ItemColor','ItemUnit','RequiredQty','PurchasePolicy']
+
+            cols = ['Id','ItemGuid','ItemCode','ItemName',
+                    'ItemCost','ItemColor','ItemUnit','RequiredQty','PurchasePolicy','FGGuid']
             for name2,group2 in group1.groupby(by=['ClassName']):
                 tmpg = []
                 ignore = True # 没有记录
@@ -119,7 +125,7 @@ class MenuOrderHead(erp):
 
                     ignore = False
                     tmp = pd.DataFrame({k: g.apply(lambda x: {**{c: getVal(x[c]) for c in cols if x[c]},
-                                                              'RMs': [{k: v for k, v in l.items()}
+                                                              'RMs': [{k: v for k, v in l.items() if k != 'FGGuid'}
                                                                       for l in rms if l['FGGuid'] == x['FGGuid']]},
                                                    axis=1)}).reset_index(drop=True)
                     tmpg.append(tmp)
@@ -137,19 +143,33 @@ class MenuOrderHead(erp):
         return ret
 
     def save(self,data):
+        costCenterCode = data['costCenterCode']
+        startDate = data['date']
+        menuorderheads = self._list(costCenterCode,startDate)[0]\
+            .with_entities(MenuOrderHead.Id,MenuOrderHead.HeadGuid,
+                           MenuOrderHead.OrderLineGuid,MenuOrderHead.RequireDate).all()
+
+        dates = self._dates(getDateTime(startDate))
         tmpg = []
-        dates = self._dates(getDateTime(data['date']))
+
         for l in data['orders']:
             date = [[k,v] for k,v in dates.items() if k in l.keys()]
             if not date: continue
             if len(date) > 1: Error('应该只有一条')
 
             tmph = MenuOrderHead(l)
-            tmph.CostCenterCode = data['costCenterCode']
+            tmph.CostCenterCode = costCenterCode
             tmph.RequireDate = date[0][1]
             tmph.CreatedUser = g.get('User')
-            if not tmph.Id:
-                tmph.Id = None
+
+            head = [h for h in menuorderheads
+                    if h.OrderLineGuid==tmph.OrderLineGuid
+                    and h.RequireDate==tmph.RequireDate]
+
+            if head:
+                tmph.Id = head[0].Id
+                tmph.HeadGuid = head[0].HeadGuid
+            else:
                 tmph.HeadGuid = getGUID()
 
             for fg in l[date[0][0]]:
