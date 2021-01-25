@@ -53,7 +53,7 @@ class Product(erp):
         if df.empty: Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
 
         # PriceList
-        tmpdf = PriceList.list(costCenterCode, date, 'Food', False, division)
+        tmpdf = PriceList.list(division,costCenterCode, date, 'Food', False)
         tmpdf['PurBOMConversion'] = tmpdf['PurStkConversion'] * tmpdf['StkBOMConversion']
         tmpdf.drop(['PurStkConversion', 'StkBOMConversion'], axis=1, inplace=True)
         df = merge(df,tmpdf, how='left',left_on='ItemCode',right_on='ItemCode')
@@ -62,10 +62,15 @@ class Product(erp):
         # Product -> BOM
         groupbyFields = ['CategoriesClassGuid','CookwayClassGuid','ItemShapeGuid',
                          'ProductGuid','ProductCode','ProductName']
-        df['ItemBOM'] = df.apply(lambda x:[{k:v for k,v in dict(x).items()
-                                            if k not in groupbyFields and v}],axis=1)
-        df = df.groupby(by=groupbyFields)['ItemBOM']\
-            .apply(lambda x: reduce(lambda y,z:y+z,x)).reset_index()
+
+        df = df.groupby(by=groupbyFields)\
+            .apply(lambda x:
+                                pd.Series({'ItemBOM':
+                                                  [reduce(lambda x1, x2: x1 + x2,
+                                                          [[{k: v for k, v in l.items()
+                                                             if k not in groupbyFields and v}]
+                                                           for l in x.sort_values(by=['ItemCode']).to_dict('records')])]}))\
+            .reset_index()
 
         # Product category
         itemClass = ItemClass.list()
@@ -76,4 +81,4 @@ class Product(erp):
                 .drop(['guid','parent'],axis=1)\
                 .rename(columns={'ClassName':l[1]})
 
-        return getdict(df)
+        return getdict(df.sort_values(by=['CagegoriesClassName','ProductCode']))

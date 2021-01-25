@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from functools import reduce
 
 import pandas as pd
 from datetime import date
@@ -74,9 +75,9 @@ class PriceList(erp):
         return dcc
 
     @classmethod
-    def list(cls,costCenterCode, date,type,needSuppliers=False,division=None):
-        if not division:
-            division = CostCenter.GetDivision(costCenterCode)
+    def list(cls,division,costCenterCode,date,type,needSuppliers=True):
+        if not division: division = CostCenter.GetDivision(costCenterCode)
+
         tmpcontrols = cls.controls(division,costCenterCode,date,type)
         classFields = [cls.ClassCode(l['ClassIndex'])
                        for l in getdict(tmpcontrols.loc[
@@ -92,10 +93,25 @@ class PriceList(erp):
                            cls.PurStkConversion.label('PurStkConversion'),
                            cls.StkBOMConversion.label('StkBOMConversion'),*classFields)
         items = pd.read_sql(sql.statement,cls.getBind())
-
-        if tmpcontrols.empty: return items
         DataFrameSetNan(items)
 
+        def _GroupSuppliers(li):
+            def _apply(g):
+                dic = {'Price': g['Price'].min()}
+                if needSuppliers:
+                    dic['suppliers'] = [reduce(lambda x1,x2: x1+x2,
+                                               [[{k:v for k,v in l.items()
+                                                  if k in ['SupplierCode','SupplierName','Price','Tax']}]
+                                                for l in g.to_dict('records')])]
+                return pd.Series(dic)
+
+            return li.groupby(by=['ItemCode','ItemName','PurUnit','StockUnit',
+                                  'BOMUnit','PurStkConversion','StkBOMConversion'])\
+                .apply(_apply).reset_index()
+
+        if tmpcontrols.empty: return _GroupSuppliers(items)
+
+        # check whether this item and supplier can be used
         def _control(item,itemcontrols):
             itemcontrols = getdict(itemcontrols,['ClassIndex','ClassCode','SupplierCode'])
             for l in itemcontrols:
@@ -105,6 +121,7 @@ class PriceList(erp):
                     return True
             return False
 
+        # get all items and their supplier that can be used
         for name,group in tmpcontrols.groupby(by=['Type']):
             # 全部产品大类，全部供应商
             if not group[((group['ClassIndex']=='')|(group['ClassCode']==''))&(group['SupplierCode']=='')].empty:
@@ -114,11 +131,4 @@ class PriceList(erp):
 
         if items.empty: Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF')) # No data
 
-        ret= items.groupby(by=['ItemCode','ItemName','PurUnit','StockUnit','BOMUnit',
-                               'PurStkConversion','StkBOMConversion'],as_index=False).agg({'Price':min})
-        if needSuppliers:
-            ret['suppliers'] = ret.apply(lambda x: [{k:v for k,v in l.items()
-                                                     if k in ['SupplierCode','SupplierName','Price','Tax']}
-                                                    for l in getdict(items[items['ItemCode']==x['ItemCode']])] ,axis=1)
-
-        return ret
+        return _GroupSuppliers(items)

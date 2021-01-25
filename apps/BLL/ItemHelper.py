@@ -14,4 +14,4 @@ class ItemHelper:
         if not costCenterCode or not date or not type:
             Error(lang('No data'))
 
-        return getdict(PriceList.list(costCenterCode,date,type))
+        return getdict(PriceList.list(None,costCenterCode,date,type))
