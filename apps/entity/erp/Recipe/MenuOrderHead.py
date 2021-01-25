@@ -74,7 +74,6 @@ class MenuOrderHead(erp):
         df.drop(['OrderLineGuid'],axis=1, inplace=True)
         df.rename(columns={'guid':'OrderLineGuid'},inplace=True)
 
-
         tmp = ItemClass.list(2)
         df = merge(df,tmp,how='left',left_on='CategoriesClassGuid',right_on='guid' )
         DataFrameSetNan(df)

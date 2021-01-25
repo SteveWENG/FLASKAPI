@@ -74,11 +74,10 @@ class Product(erp):
 
         # Product category
         itemClass = ItemClass.list()
-        for l in [['CategoriesClassGuid','CagegoriesClassName'],
-                  ['CookwayClassGuid','CookwayClassName'],
-                  ['ItemShapeGuid','ItemShapeName']]:
-            df = merge(df,itemClass,left_on=l[0],right_on='guid')\
-                .drop(['guid','parent'],axis=1)\
-                .rename(columns={'ClassName':l[1]})
-
-        return getdict(df.sort_values(by=['CagegoriesClassName','ProductCode']))
+        for l in ['CategoriesClass','CookwayClass','ItemShape']:
+            sguid = l + 'guid'
+            df = merge(df,itemClass,how='left',left_on=(l+'Guid'),right_on='guid')\
+                .drop(['guid'],axis=1)\
+                .rename(columns={'ClassName':l+'Name','Sort':l+'Sort'})
+        DataFrameSetNan(df)
+        return getdict(df.sort_values(by=['CategoriesClassSort','ProductCode']))
