@@ -29,7 +29,7 @@ class CostCenter(erp):
         #if filter == [True]: filter = []
         if len(filter) > 1:
             filter = [or_(*filter)]
-        filter.append(cls.StartDate<=datetime.datetime.now())
+        #filter.append(cls.StartDate<=datetime.datetime.now())
         tmp = cls.query.filter(*filter).with_entities(cls.Division,cls.CostCenterCode, cls.SiteGuid,cls.ExactWarehouse)\
             .distinct().all()
         return getdict(tmp)

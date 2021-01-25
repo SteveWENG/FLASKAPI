@@ -62,7 +62,7 @@ class MenuOrderHead(erp):
                            MenuOrderFG.Id,MenuOrderFG.FGGuid,MenuOrderFG.ItemGuid,
                            func.coalesce(MenuOrderFG.ItemCode,Product.ItemCode).label('ItemCode'),
                            func.coalesce(Product.ItemName,Item.ItemName).label('ItemName'),
-                           Product.CategoriesClassGUID,
+                           Product.CategoriesClassGuid,
                            MenuOrderFG.ItemUnit,MenuOrderFG.RequiredQty,MenuOrderFG.ItemCost,
                            MenuOrderFG.ItemColor,MenuOrderFG.ItemCost,MenuOrderFG.PurchasePolicy)
         df = pd.read_sql(sql.statement,self.getBind())
@@ -75,14 +75,8 @@ class MenuOrderHead(erp):
         df.rename(columns={'guid':'OrderLineGuid'},inplace=True)
 
 
-        tmp = ItemClass.list()
-        tmp['guid'] = tmp.apply(lambda x:  [x[c] for c in
-                                            sorted([k for k in tmp.columns if 'guid' in k])
-                                            if x[c]][-1],axis=1)
-        tmp['ClassName'] = tmp.apply(lambda x: '/'.join([x[c] for c in
-                                                sorted([k for k in tmp.columns if 'ClassName' in k])
-                                                if x[c]][:2]), axis=1)
-        df = merge(df,tmp,how='left',left_on='CategoriesClassGUID',right_on='guid' )
+        tmp = ItemClass.list(2)
+        df = merge(df,tmp,how='left',left_on='CategoriesClassGuid',right_on='guid' )
         DataFrameSetNan(df)
 
         rms = MenuOrderRM.query.join(MenuOrderFG, MenuOrderRM.FGGuid == MenuOrderFG.FGGuid) \

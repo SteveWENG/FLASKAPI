@@ -11,6 +11,7 @@ class LogToDB(threading.Thread):
         self.daemon = False
         self._queue = que
         self._guid = getGUID()
+        self.start()
 
     def run(self):
         while True:

@@ -8,6 +8,7 @@ from sqlalchemy.ext.hybrid import hybrid_property,hybrid_method
 from apps.utils.functions import *
 from ..common.CostCenter import CostCenter
 from ..common.DataControlConfig import DataControlConfig
+from ..common.LangMast import lang
 from ...erp import erp, db
 
 class PriceList(erp):
@@ -20,9 +21,11 @@ class PriceList(erp):
     SupplierCode = db.Column('Supplier_Code')
     SupplierName = db.Column('Supplier_Name')
     Price = db.Column()
+    Tax = db.Column()
 
     PurUnit = db.Column('Pur_Unit')
     StockUnit = db.Column('Stock_Unit')
+    BOMUnit = db.Column('BOM_Unit')
     PurStkConversion = db.Column('PurStk_Conversion')
     StkBOMConversion = db.Column('StkBOM_Conversion')
     ValidFrom = db.Column(db.Date)
@@ -71,7 +74,9 @@ class PriceList(erp):
         return dcc
 
     @classmethod
-    def list(cls,division,costCenterCode, date,type):
+    def list(cls,costCenterCode, date,type,needSuppliers=False,division=None):
+        if not division:
+            division = CostCenter.GetDivision(costCenterCode)
         tmpcontrols = cls.controls(division,costCenterCode,date,type)
         classFields = [cls.ClassCode(l['ClassIndex'])
                        for l in getdict(tmpcontrols.loc[
@@ -80,25 +85,40 @@ class PriceList(erp):
 
         sql = cls.query.filter(cls.Division==division,cls.ValidFrom<=date,cls.ValidTo>=date)\
             .with_entities(cls.ItemCode,cls.ItemName.label('ItemName'),
-                           cls.SupplierCode.label('SupplierCode'),cls.Price,
+                           cls.SupplierCode.label('SupplierCode'),cls.SupplierCode.label('SupplierName'),
+                           cls.Price,cls.Tax,
+                           cls.PurUnit.label('PurUnit'),cls.StockUnit.label('StockUnit'),
+                           cls.BOMUnit.label('BOMUnit'),
                            cls.PurStkConversion.label('PurStkConversion'),
                            cls.StkBOMConversion.label('StkBOMConversion'),*classFields)
         items = pd.read_sql(sql.statement,cls.getBind())
 
         if tmpcontrols.empty: return items
+        DataFrameSetNan(items)
+
+        def _control(item,itemcontrols):
+            itemcontrols = getdict(itemcontrols,['ClassIndex','ClassCode','SupplierCode'])
+            for l in itemcontrols:
+                if (l['ClassIndex']=='' or l['ClassCode']=='' or
+                        item['Class%sCode' % l['ClassIndex']]==l['ClassCode']) and \
+                        (l['SupplierCode']=='' or item['SupplierCode']==l['SupplierCode']):
+                    return True
+            return False
 
         for name,group in tmpcontrols.groupby(by=['Type']):
             # 全部产品大类，全部供应商
-            if not group[(group['ClassCode']=='')&(group['SupplierCode']=='')].empty:
+            if not group[((group['ClassIndex']=='')|(group['ClassCode']==''))&(group['SupplierCode']=='')].empty:
                 continue
 
-            tmpgroup = getdict(group,['ClassIndex','ClassCode','SupplierCode'])
-            items['need'] = items.apply(lambda x:
-                                        sorted(set([True if (l['ClassIndex']=='' or l['ClassCode']=='' or
-                                                             x['Class%sCode' % l['ClassIndex']]==l['ClassCode'])
-                                                            and (l['SupplierCode']=='' or x['SupplierCode']==l['SupplierCode'])
-                                                    else False
-                                                    for l in tmpgroup]))[-1], axis=1)
-            items = items[items['need']==True]
-        items.drop(['need'],axis=1,inplace=True)
-        return items
+            items = items[items.apply(lambda x: _control(x,group),axis=1)]
+
+        if items.empty: Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF')) # No data
+
+        ret= items.groupby(by=['ItemCode','ItemName','PurUnit','StockUnit','BOMUnit',
+                               'PurStkConversion','StkBOMConversion'],as_index=False).agg({'Price':min})
+        if needSuppliers:
+            ret['suppliers'] = ret.apply(lambda x: [{k:v for k,v in l.items()
+                                                     if k in ['SupplierCode','SupplierName','Price','Tax']}
+                                                    for l in getdict(items[items['ItemCode']==x['ItemCode']])] ,axis=1)
+
+        return ret

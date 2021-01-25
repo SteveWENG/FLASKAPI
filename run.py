@@ -15,7 +15,7 @@ def show():
 @app.before_request
 def before_request(*args, **kwargs):
     g.LogQueue = queue.Queue()
-    LogToDB(g.LogQueue).start()
+    LogToDB(g.LogQueue)
 
     app.logger.info('Started')
 
