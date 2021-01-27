@@ -43,6 +43,7 @@ class OrderHead(erp):
             self._config =  DataControlConfig.list(['PO', 'FoodPO'])
             if self._config.empty: return ''
             DataFrameSetNan(self._config)
+        if '_division' not in dir(self) or not self._division:
             self._division = CostCenter.GetDivision(costCenterCode)
 
         df = self._config[(self._config['Type'] == type) & (self._config['Val1'] == subtype)]

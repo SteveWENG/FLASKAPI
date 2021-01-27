@@ -81,7 +81,7 @@ class Product(erp):
                                                               if k not in groupbyFields and v}]
                                                             for l in x.sort_values(by=['ItemCode'])
                                                            .to_dict('records')])]}))\
-            .reset_index().rename(columns={'ProductCode':'ItemCode','ProductName':'ItemName'})
+            .reset_index().rename(columns={'ProductGuid':'ItemGuid','ProductCode':'ItemCode','ProductName':'ItemName'})
 
         # Product category
         itemClass = ItemClass.list()
