@@ -22,6 +22,7 @@ class Product(erp):
     Division = db.Column('company')
     Guid = db.Column()
     ItemCode = db.Column()
+    ShareQty = db.Column()
     CategoriesClassGuid = db.Column()
     CookwayClassGuid = db.Column()
     ItemShapeGuid = db.Column()
@@ -47,8 +48,8 @@ class Product(erp):
                                ~cls.BOMs.any(ItemBOM.ItemCode.like('[AB]%')))\
             .join(ItemBOM,cls.Guid==ItemBOM.ProductGuid)\
             .with_entities(cls.CategoriesClassGuid,cls.CookwayClassGuid,cls.ItemShapeGuid,
-                           cls.Guid.label('ProductGuid'),
-                           cls.ItemCode.label('ProductCode'),cls.ItemName.label('ProductName'),
+                           cls.Guid.label('ProductGuid'),cls.ItemCode.label('ProductCode'),
+                           cls.ItemName.label('ProductName'),cls.ShareQty,
                            ItemBOM.CostCenterCode,ItemBOM.ItemCode,
                            ItemBOM.OtherName,ItemBOM.Qty,cls.CreateUser,cls.CreateTime)
 
@@ -70,16 +71,17 @@ class Product(erp):
         DataFrameSetNan(df)
 
         # Product -> BOM
-        groupbyFields = ['CategoriesClassGuid','CookwayClassGuid','ItemShapeGuid',
-                         'ProductGuid','ProductCode','ProductName','CreateUser','CreateTime']
+        groupbyFields = ['CategoriesClassGuid','CookwayClassGuid','ItemShapeGuid','ProductGuid',
+                         'ProductCode','ProductName','ShareQty','CreateUser','CreateTime']
 
         df = df.groupby(by=groupbyFields)\
-            .apply(lambda x: pd.Series({'ItemBOM': [reduce(lambda x1, x2: x1 + x2,
+            .apply(lambda x: pd.Series({'ItemCost': (x['Price']*x['Qty']/x['PurBOMConversion']).sum(),
+                                        'ItemBOM': [reduce(lambda x1, x2: x1 + x2,
                                                            [[{k: v for k, v in l.items()
                                                               if k not in groupbyFields and v}]
                                                             for l in x.sort_values(by=['ItemCode'])
                                                            .to_dict('records')])]}))\
-            .reset_index()
+            .reset_index().rename(columns={'ProductCode':'ItemCode','ProductName':'ItemName'})
 
         # Product category
         itemClass = ItemClass.list()
@@ -89,4 +91,4 @@ class Product(erp):
                 .drop(['guid'],axis=1)\
                 .rename(columns={'ClassName':l+'Name','Sort':l+'Sort'})
         DataFrameSetNan(df)
-        return getdict(df.sort_values(by=['CategoriesClassSort','ProductCode']))
+        return getdict(df.sort_values(by=['CategoriesClassSort','ItemCode']))

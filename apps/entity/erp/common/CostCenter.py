@@ -36,7 +36,7 @@ class CostCenter(erp):
 
     @classmethod
     def Divisions(cls):
-        return cls.query.filter(cls.StartDate<=datetime.date.today()).with_entities(cls.Division).distinct().all()
+        return [l.Division for l in cls.query.with_entities(cls.Division).distinct().all()]
 
     @classmethod
     def GetDivision(cls, costCenterCode):

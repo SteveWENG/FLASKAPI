@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
+
 from pandas import merge
 
 from ..entity.erp.common.AppUserData import AppUserData
-from ..entity.erp.common.Company import Company
-from ..entity.erp.common.CCMast import CCMast
 from ..entity.erp.common.CostCenter import CostCenter
 from ..entity.erp.common.LangMast import lang
 from ..entity.erp.common.UserMast import UserMast
@@ -63,8 +62,8 @@ class UserHelper:
             if not dataType[0] or 'costcenter' in dataType:
                 dic['costcenter'] = CostCenter.Sites(dic.get('company'),dic.get('costcenter'),dic.get('costcentercategory')) # CCMast.ShowSites(dic.get('company'),dic.get('costcenter')) # CCMast.ShowSites
             if (not dataType[0] or 'company' in dataType) and 'company' in types and dic.get('company')==[]: # 全部公司
-                dic['company'] =  CostCenter.Division()# CCMast.ShowDB()
+                dic['company'] = CostCenter.Divisions()
 
-            return {k:v for k,v in dic.items() if v}
+            return {k:v for k,v in dic.items() if v or isinstance(v,list)}
         except Exception as e:
             raise e
