@@ -34,6 +34,7 @@ class MenuOrderHead(erp):
                           lazy='joined')
 
     def _dates(self, startDate):
+        if isinstance(startDate,str): startDate = getDateTime(startDate)
         dates = {}
         for n in range(7):
             dates['day'+str(n)] = startDate + datetime.timedelta(days=n)
@@ -48,7 +49,6 @@ class MenuOrderHead(erp):
         return MenuOrderHead.query.filter(*filters),filters,endDate
 
     def list(self,costCenterCode,startDate):
-        dates = self._dates(getDateTime(startDate))
         sql,filters,endDate = self._list(costCenterCode,startDate)
 
         sql = sql.join(CONTRACT,and_(MenuOrderHead.OrderLineGuid==CONTRACT.guid,
@@ -74,66 +74,59 @@ class MenuOrderHead(erp):
         df.drop(['OrderLineGuid'],axis=1, inplace=True)
         df.rename(columns={'guid':'OrderLineGuid'},inplace=True)
 
-        tmp = ItemClass.list(2)
+        tmp = ItemClass.list(2).rename(columns={'Sort':'ClassSort'})
         df = merge(df,tmp,how='left',left_on='CategoriesClassGuid',right_on='guid' )
         DataFrameSetNan(df)
 
         rms = MenuOrderRM.query.join(MenuOrderFG, MenuOrderRM.FGGuid == MenuOrderFG.FGGuid) \
-            .join(MenuOrderHead, MenuOrderFG.HeadGuid == MenuOrderHead.HeadGuid).filter(*filters)\
-            .join(Item, MenuOrderRM.ItemCode==Item.ItemCode) \
-            .with_entities(MenuOrderRM.Id,MenuOrderRM.FGGuid, MenuOrderRM.ItemCode,
-                           Item.ItemName,MenuOrderRM.ItemUnit,
-                           MenuOrderRM.ItemCost, MenuOrderRM.RequiredQty,
-                           MenuOrderRM.PurBOMConversion,MenuOrderRM.PurchasePolicy).all()
-        rms = getdict(rms)
+            .join(MenuOrderHead, MenuOrderFG.HeadGuid == MenuOrderHead.HeadGuid).filter(*filters) \
+            .join(Item, MenuOrderRM.ItemCode == Item.ItemCode) \
+            .with_entities(MenuOrderRM.Id, MenuOrderRM.FGGuid, MenuOrderRM.ItemCode,
+                           Item.ItemName, MenuOrderRM.PurUnit,MenuOrderRM.BOMUnit,
+                           MenuOrderRM.BOMQty,MenuOrderRM.ItemPrice, MenuOrderRM.RequiredQty,
+                           MenuOrderRM.PurBOMConversion, MenuOrderRM.PurchasePolicy)
+        rms = pd.read_sql(rms.statement,self.getBind())
 
-        ret = []
-        for name1, group1 in df.groupby(by=['SOItemName', 'SOItemDesc','OrderLineGuid']):
+        df.loc[df['FGGuid'] != '', 'RMs'] = df.apply(lambda x: getdict(rms[rms['FGGuid'] == x['FGGuid']]), axis=1)
 
-            #加菜
-            tmp = {k: {'MealQty':group1.iloc[0]['MealQty'],'MealPrice':group1.iloc[0]['MealPrice']}
-                    for k,v in dates.items() if v>=group1.iloc[0]['StartDate']
-                                                and v<=group1.iloc[0]['EndDate']}
+        # group, day0,day1...对齐
+        def _groupdf(li, dates, groupbyFields, aggcols):
+            for k, v in dates.items():
+                li.loc[(li['RequireDate'] == v), k] = li.apply(lambda x: {c: x[c] for c in aggcols if x[c]}, axis=1)
 
-            tmp['ItemName'] = name1[0]
-            tmp['OrderLineGuid'] = name1[2]
-            if name1[1]: tmp['ItemDesc'] = name1[1]
-            ret.append(tmp)
+            return li.groupby(by=groupbyFields) \
+                .apply(lambda g: pd.DataFrame({k: g.loc[~g[k].isna(), k].reset_index(drop=True)
+                                               for k in dates.keys()})) \
+                .reset_index()
 
-            if group1.empty: continue
+        def _processdf(df, startDate):
+            dates = self._dates(startDate)
+            cols = ['MealQty', 'MealPrice']
+            groupbyFields = ['SOItemName', 'SOItemDesc', 'OrderLineGuid', 'StartDate', 'EndDate']
+            tdf1 = _groupdf(df.drop_duplicates(subset=(groupbyFields + ['RequireDate'])),
+                                 dates, groupbyFields, cols)
+            tdf1 = tdf1.append(df.loc[df['RequireDate'] == '', groupbyFields]).reset_index()
+            # 无效的订单行
+            for k, v in dates.items():
+                tdf1.loc[(tdf1['StartDate']<=v) & (tdf1['EndDate']>=v) & (tdf1[k].isna()), k] =\
+                    tdf1.apply(lambda x: {c: '' for c in cols},axis=1)
+                tdf1.loc[(tdf1['StartDate'] > v) | (tdf1['EndDate'] < v), k] = math.nan
 
+            cols = ['Id', 'FGGuid', 'ItemGuid', 'ItemCode', 'ItemName', 'ItemCost',
+                    'ItemColor', 'ItemUnit', 'RequiredQty', 'PurchasePolicy','RMs']
+            groupbyFields = ['SOItemName', 'SOItemDesc', 'OrderLineGuid', 'ClassName', 'ClassSort']
+            tdf = _groupdf(df[df['Id'] > 0], dates, groupbyFields, cols)
+            tdf.fillna(value={k: '' for k in dates.keys()}, inplace=True)
 
-            cols = ['Id','ItemGuid','ItemCode','ItemName',
-                    'ItemCost','ItemColor','ItemUnit','RequiredQty','PurchasePolicy','FGGuid']
-            for name2,group2 in group1.groupby(by=['ClassName']):
-                tmpg = []
-                ignore = True # 没有记录
-                for k,v in {k:v for k,v in dates.items()
-                            if v>=group1.iloc[0]['StartDate']
-                               and v<=group1.iloc[0]['EndDate']}.items():
-                    g = group2[group2['RequireDate']==v]
-                    if g.empty:
-                        tmpg.append(pd.DataFrame([{k: ""}]))
-                        continue
+            tdf = tdf.append(tdf1[set(tdf1.columns).intersection(set(tdf.columns))])
+            DataFrameSetNan(tdf)
 
-                    ignore = False
-                    tmp = pd.DataFrame({k: g.apply(lambda x: {**{c: getVal(x[c]) for c in cols if x[c]},
-                                                              'RMs': [{k: v for k, v in l.items() if k != 'FGGuid'}
-                                                                      for l in rms if l['FGGuid'] == x['FGGuid']]},
-                                                   axis=1)}).reset_index(drop=True)
-                    tmpg.append(tmp)
-                if ignore: continue
+            return tdf.sort_values(by=['SOItemName', 'SOItemDesc', 'ClassSort'])[groupbyFields + list(dates.keys())] \
+                .rename(columns={'SOItemName': 'ItemName', 'SOItemDesc': 'ItemDesc'})
 
-                tmp = pd.concat(tmpg,axis=1)
-                tmp['ItemName'] = name1[0]
-                tmp['OrderLineGuid'] = name1[2]
-                if name1[1]: tmp['ItemDesc'] = name1[1]
-                if name2: tmp['ClassName'] = name2
+        tdf = _processdf(df, startDate)
 
-                DataFrameSetNan(tmp)
-                ret = ret + getdict(tmp, tmp.columns)
-
-        return ret
+        return getdict(tdf)
 
     def save(self,data):
         costCenterCode = data['costCenterCode']

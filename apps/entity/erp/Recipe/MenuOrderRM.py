@@ -7,9 +7,11 @@ class MenuOrderRM(erp):
 
     FGGuid = db.Column()
     ItemCode = db.Column()
-    ItemUnit = db.Column()
     RequiredQty = db.Column()
-    ItemCost = db.Column()
+    ItemPrice = db.Column()
     PurchasePolicy = db.Column()
     PurBOMConversion = db.Column()
+    PurUnit = db.Column()
+    BOMQty = db.Column()
+    BOMUnit = db.Column()
     CreatedUser = db.Column()
