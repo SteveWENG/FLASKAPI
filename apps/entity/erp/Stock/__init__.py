@@ -189,12 +189,16 @@ class TransData(erp):
         filters = []
         divisions = getStr(data.get('divisions', ''))
         costCenterCodes = getStr(data.get('costCenterCodes', ''))
+        supplierCode = data.get('supplierCode', '')
         if divisions:
             filters.append(CostCenter.Division.in_(divisions.split(',')))
         if costCenterCodes:
             filters.append(cls.CostCenterCode.in_(costCenterCodes.split(',')))
         if len(filters) == 2:
             filters = [or_(*filters)]
+
+        if supplierCode:
+            filters.append(cls.SupplierCode==supplierCode)
         filters.append(func.round(cls.Qty, 6) != 0)
         filters.append(cls.DeleteTime==None)
 

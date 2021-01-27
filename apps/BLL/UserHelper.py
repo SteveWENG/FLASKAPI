@@ -38,7 +38,7 @@ class UserHelper:
     @staticmethod
     def AppData(data):
         try:
-            dataType = data.get('dataType','').lower()
+            dataType = data.get('dataType','').lower().split(',')
             li = AppUserData.data(data.get('userGuid',''),data.get('appGuid',''))
             if li.empty:
                 Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF')) # No data
@@ -64,9 +64,9 @@ class UserHelper:
                 if tmp and not dic[s]:
                     dic[s] = [x for x in tmp]
 
-            if dataType == '' or dataType == 'costcenter':
+            if not dataType[0] or 'costcenter' in dataType:
                 dic['costcenter'] = CostCenter.Sites(dic.get('company'),dic.get('costcenter'),dic.get('costcentercategory')) # CCMast.ShowSites(dic.get('company'),dic.get('costcenter')) # CCMast.ShowSites
-            if (dataType == '' or dataType == 'company') and 'company' in types and dic.get('company')==[]: # 全部公司
+            if (not dataType[0] or 'company' in dataType) and 'company' in types and dic.get('company')==[]: # 全部公司
                 dic['company'] =  CostCenter.Division()# CCMast.ShowDB()
 
             return {k:v for k,v in dic.items() if v}
