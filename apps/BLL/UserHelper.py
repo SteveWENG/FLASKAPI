@@ -49,11 +49,7 @@ class UserHelper:
             # 如有code为空，则是全部Company/Site
             types = li.loc[li['Code']=='','Type'].tolist()
             dic = {k: [] if k in types else None for k in set(li['Type'])}
-            '''
-            dic['company'] = [] if 'company' in types else None
-            dic['costcenter'] = [] if 'costcener' in types else None
-            dic['supplier'] = [] if 'supplier' in types else None
-            '''
+
             if types:
                 li = li[~li['Type'].isin(types)]
 

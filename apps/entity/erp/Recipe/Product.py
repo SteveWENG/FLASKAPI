@@ -55,7 +55,7 @@ class Product(erp):
         # PriceList
         tmpdf = PriceList.list(division,costCenterCode, date, 'Food', False)
         tmpdf['PurBOMConversion'] = tmpdf['PurStkConversion'] * tmpdf['StkBOMConversion']
-        tmpdf.drop(['PurStkConversion', 'StkBOMConversion'], axis=1, inplace=True)
+        tmpdf.drop(['PurStkConversion', 'StkBOMConversion','StockUnit'], axis=1, inplace=True)
         df = merge(df,tmpdf, how='left',left_on='ItemCode',right_on='ItemCode')
         DataFrameSetNan(df)
 
@@ -64,12 +64,11 @@ class Product(erp):
                          'ProductGuid','ProductCode','ProductName']
 
         df = df.groupby(by=groupbyFields)\
-            .apply(lambda x:
-                                pd.Series({'ItemBOM':
-                                                  [reduce(lambda x1, x2: x1 + x2,
-                                                          [[{k: v for k, v in l.items()
-                                                             if k not in groupbyFields and v}]
-                                                           for l in x.sort_values(by=['ItemCode']).to_dict('records')])]}))\
+            .apply(lambda x: pd.Series({'ItemBOM': [reduce(lambda x1, x2: x1 + x2,
+                                                           [[{k: v for k, v in l.items()
+                                                              if k not in groupbyFields and v}]
+                                                            for l in x.sort_values(by=['ItemCode'])
+                                                           .to_dict('records')])]}))\
             .reset_index()
 
         # Product category
