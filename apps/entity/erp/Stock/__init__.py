@@ -5,6 +5,7 @@ from sqlalchemy import func, select, and_, or_, case, distinct
 import pandas as pd
 from pandas import merge
 
+from ..Order.OrderLine import OrderLine
 from ..Item import Item
 from ..common.CostCenter import CostCenter
 from ..common.Supplier import Supplier
@@ -272,7 +273,10 @@ class TransData(erp):
 
         if type == 'dailyporeceipt':
             qry = qry.join(Supplier, and_(CostCenter.Division == Supplier.Division,
-                                          cls.SupplierCode == Supplier.SupplierCode))
+                                          cls.SupplierCode == Supplier.SupplierCode))\
+                .join(OrderLine,cls.OrderLineGuid==OrderLine.Guid)
+            fields += [((func.coalesce(OrderLine.ItemTax,0)/100+1)*cls.ItemCost).label('CostWithTax'),
+                       ((func.coalesce(OrderLine.ItemTax,0)/100+1)*cls.ItemCost*cls.Qty).label('AmtWithTax')]
         elif type == 'batch' or endDate: # 现在查询batch，或明细
             qry = qry.outerjoin(Supplier, and_(CostCenter.Division == Supplier.Division,
                                                cls.SupplierCode == Supplier.SupplierCode))

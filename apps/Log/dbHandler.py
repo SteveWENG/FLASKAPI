@@ -6,7 +6,6 @@ from flask import request, g
 class dbHandler(logging.Handler):
 
     def emit(self, record):
-
         try:
             dic = {'LogRecord': record, 'data': request.json, 'method': request.full_path,
                    'UserIP': request.remote_addr}
@@ -14,8 +13,10 @@ class dbHandler(logging.Handler):
                 dic['Site'] = g.get('Site')
             if g.get('User'):
                 dic['User'] = g.get('User')
+
+            g.LogQueue.put(dic)
         except:
             pass
-        g.LogQueue.put(dic)
+
 
 
