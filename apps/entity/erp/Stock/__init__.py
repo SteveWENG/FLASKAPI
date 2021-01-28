@@ -220,9 +220,18 @@ class TransData(erp):
         df1 = cls._list(filters.copy(),startDate,'',openning,type)
         if not df1.empty: df = df.append(df1)
         df2 = cls._list(filters, startDate, endDate, openning, type)
-        if not df2.empty: df = df.append(df2)
+        if not df2.empty:
+            if type == 'dailyporeceipt':
+                dropFields = []
+                if supplierCode:
+                    dropFields += ['SupplierCode', 'SupplierName']
+                if df2[df2['Cost'] != df2['CostWithTax']].empty:
+                    dropFields += ['CostWithTax', 'AmtWithTax']
+                if dropFields:
+                    df2.drop(dropFields, axis=1, inplace=True)
+            df = df.append(df2)
 
-        if df1.empty and df2.empty:
+        if df.empty:
             Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))
 
         DataFrameSetNan(df)
@@ -242,7 +251,8 @@ class TransData(erp):
 
         return [{**{k: getVal(v) for k,v in l.items()
                  if k.lower() not in ['suppliercode','suppliername','remark'] and v},
-                'SupplierCode':l.get('SupplierCode',''),'SupplierName':l.get('SupplierName',''),
+                 **({'SupplierCode':l.get('SupplierCode',''),'SupplierName':l.get('SupplierName','')}
+                    if 'SupplierCode' in list(df.columns) else {}),
                  'Remark':l.get('Remark','')}
                 for l in df.to_dict('records')]
 

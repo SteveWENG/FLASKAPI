@@ -92,12 +92,12 @@ class OrderHead(erp):
     def dates(self, costCenterCode, orderType):
         # 普通单的日期
         today = datetime.date.today()
-        date = today
+        podate = today
         if orderType.lower() == 'food':
-            date += datetime.timedelta(days=self.getNextDays(costCenterCode))
+            podate += datetime.timedelta(days=1)
 
         workdates = Calendar.WorkDates()
-        earLiestDate = sorted([d for d in workdates if d < date],
+        earLiestDate = sorted([d for d in workdates if d < podate],
                               reverse=True)[self.getEarliestDays(costCenterCode)]
         # earLiestDate = datetime.date.today() - datetime.timedelta(days=cls.getEarliestDays(costCenterCode))
         ret = {'EarliestDate': getDateTime(earLiestDate)}
@@ -114,24 +114,24 @@ class OrderHead(erp):
             ret['dates'] = [{'date': getDateTime(d.OrderDate)} for d in tmp]
             return ret
 
-        deadline = self.getFoodPODeadLine(orderType,'Normal',costCenterCode,date)
-        if not deadline and deadline < 0: date = date + datetime.timedelta(days=1)
+        deadline = self.getFoodPODeadLine(orderType,'Normal',costCenterCode,podate)
+        if not deadline and deadline < 0: podate = podate + datetime.timedelta(days=1)
 
         dates2 = []
         #补单
         d = earLiestDate
-        while(d<date):
+        while(d<podate):
             dates2.append({'date':getDateTime(d),'remark':'Addition Order'})
             d = d + datetime.timedelta(days=1)
 
         dates1 = []
         remark = 'This Week'
-        if not isSameWeek(today,date): #date.weekday() < today.weekday() or (date - today).days>6:
+        if not isSameWeek(today,podate): #date.weekday() < today.weekday() or (date - today).days>6:
             remark = 'Next Week'
 
         # 周四、五上班，周六、日休息，下周一开始周单
         canDoNextWeek = False
-        tmp = sorted([d for d in workdates if d >= date])
+        tmp = sorted([d for d in workdates if d >= podate])
         # tmp[1] or tmp[0]是下一周
         if not isSameWeek(today,tmp[1]):
             canDoNextWeek = True
@@ -139,10 +139,10 @@ class OrderHead(erp):
         # startWeekDay = cls.getStartWeekDay(costCenterCode)
         ppoweeks = self.getPlanningPOWeeks(costCenterCode)
         while(True):
-            dates1.append({'date':getDateTime(date),'remark':remark})
+            dates1.append({'date':getDateTime(podate),'remark':remark})
 
             # 周日
-            if date.weekday() == 6:
+            if podate.weekday() == 6:
                 # 无下周周单, 下周的周数已到
                 #if datetime.date.today().weekday() < startWeekDay or ppoweeks==0:
                 if not canDoNextWeek or ppoweeks == 0:
@@ -151,7 +151,7 @@ class OrderHead(erp):
                 remark = 'Next Week'
                 ppoweeks = ppoweeks - 1
 
-            date = date + datetime.timedelta(days=1)
+            podate = podate + datetime.timedelta(days=1)
 
         ret['dates'] = dates1 + dates2
         return ret
