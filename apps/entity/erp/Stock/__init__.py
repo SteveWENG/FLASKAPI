@@ -3,13 +3,13 @@
 from functools import reduce
 from sqlalchemy import func, select, and_, or_, case, distinct
 import pandas as pd
-from pandas import merge
 
 from ..Order.OrderLine import OrderLine
 from ..Item import Item
 from ..common.CostCenter import CostCenter
 from ..common.Supplier import Supplier
 from ....utils.functions import *
+from ....utils.MyThread import MyThread
 from ...erp import erp, db
 from ..common.LangMast import lang
 
@@ -215,14 +215,17 @@ class TransData(erp):
 
         if not startDate: startDate = endDate if endDate else datetime.date.today()
         if not endDate: endDate = startDate
-
-        df = pd.DataFrame([])
         df1 = cls._list(filters.copy(),startDate,'',openning,type)
+        df2 = cls._list(filters.copy(),startDate,endDate,openning,type)
+        '''
+        df1 = MyThread(cls._list,args=(filters.copy(),startDate,'',openning,type)).get()
+        df2 = MyThread(cls._list,args=(filters.copy(),startDate,endDate,openning,type)).get()
+        '''
+        df = pd.DataFrame([])
         if not df1.empty: df = df.append(df1)
-        df2 = cls._list(filters, startDate, endDate, openning, type)
         if not df2.empty:
             if type == 'dailyporeceipt':
-                dropFields = []
+                dropFields = ['BusinessType','BatchGuid']
                 if supplierCode:
                     dropFields += ['SupplierCode', 'SupplierName']
                 if df2[df2['Cost'] != df2['CostWithTax']].empty:
@@ -255,6 +258,7 @@ class TransData(erp):
                     if 'SupplierCode' in list(df.columns) else {}),
                  'Remark':l.get('Remark','')}
                 for l in df.to_dict('records')]
+
 
     # 期初：startDate, openning,type
     # 明细： startDate, endDate, openning, type

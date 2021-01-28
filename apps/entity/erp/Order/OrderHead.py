@@ -55,15 +55,17 @@ class OrderHead(erp):
 
         return tmpdf.iloc[0][field]
 
+    # <0: 已过deadline；无值或>0.
     def getFoodPODeadLine(self, OrderType, OrderSubType, costCenterCode, date):
-        if OrderType.lower() =='nofoood' or OrderSubType.lower() != 'normal':
+        if OrderType.lower() !='foood' and OrderSubType.lower() != 'normal':
             return None
 
+        # 只考虑正常的食品单，今天做明天的PO
         if isinstance(date,datetime.date):
             date = getDateTime(date)
         deadline = getDateTime(date + ' ' + self.getConfigs(costCenterCode,'FoodPO','DailyEndTime','Val3'))
 
-        createTime = datetime.datetime.now() + datetime.timedelta(days=getInt(self.getNextDays(costCenterCode)),minutes=1)
+        createTime = datetime.datetime.now() + datetime.timedelta(days=1,minutes=1)
         if deadline.date() > createTime.date():
             return None
 
@@ -72,16 +74,8 @@ class OrderHead(erp):
 
         return (deadline-createTime).seconds
 
-    def getNextDays(self,costCenterCode):
-        return getInt(self.getConfigs(costCenterCode,'FoodPO','NextDays','Val3'))
-
     def getPlanningPOWeeks(self, costCenterCode):
         return getInt(self.getConfigs(costCenterCode, 'FoodPO', 'PlanningPOWeeks', 'Val3'))
-
-    # 可以做周单的星期几
-    @classmethod
-    def getStartWeekDay(cls, costCenterCode):
-        return getWeekDay(cls.getConfigs(costCenterCode,'FoodPO','WeekDayToWeekPOs', 'Val3'))
 
     # 可以做几天前的补单和非s食品PO
     def getEarliestDays(self, costCenterCode):
@@ -96,10 +90,8 @@ class OrderHead(erp):
         if orderType.lower() == 'food':
             podate += datetime.timedelta(days=1)
 
-        workdates = Calendar.WorkDates()
-        earLiestDate = sorted([d for d in workdates if d < podate],
-                              reverse=True)[self.getEarliestDays(costCenterCode)]
-        # earLiestDate = datetime.date.today() - datetime.timedelta(days=cls.getEarliestDays(costCenterCode))
+        workdates = Calendar.WorkDates(today)
+        earLiestDate = [d for d in workdates if d < today][-1 * self.getEarliestDays(costCenterCode)]
         ret = {'EarliestDate': getDateTime(earLiestDate)}
 
         if orderType.lower() != 'food':
@@ -115,45 +107,38 @@ class OrderHead(erp):
             return ret
 
         deadline = self.getFoodPODeadLine(orderType,'Normal',costCenterCode,podate)
-        if not deadline and deadline < 0: podate = podate + datetime.timedelta(days=1)
+        if deadline and deadline < 0: podate = podate + datetime.timedelta(days=1)
 
-        dates2 = []
         #补单
+        Additiondates = []
         d = earLiestDate
         while(d<podate):
-            dates2.append({'date':getDateTime(d),'remark':'Addition Order'})
-            d = d + datetime.timedelta(days=1)
+            Additiondates.append({'date':getDateTime(d),'remark':'Addition Order'})
+            d += datetime.timedelta(days=1)
 
-        dates1 = []
         remark = 'This Week'
-        if not isSameWeek(today,podate): #date.weekday() < today.weekday() or (date - today).days>6:
-            remark = 'Next Week'
+        if not isSameWeek(today,podate): remark = 'Next Week'
 
-        # 周四、五上班，周六、日休息，下周一开始周单
+        #开始做周单：下下工作日是下一周。例如，周四开始
         canDoNextWeek = False
-        tmp = sorted([d for d in workdates if d >= podate])
-        # tmp[1] or tmp[0]是下一周
-        if not isSameWeek(today,tmp[1]):
+        if not isSameWeek(today,[d for d in workdates if d > today][1]):
             canDoNextWeek = True
 
-        # startWeekDay = cls.getStartWeekDay(costCenterCode)
-        ppoweeks = self.getPlanningPOWeeks(costCenterCode)
+        Normaldates = []
+        ppoweeks = self.getPlanningPOWeeks(costCenterCode) #可以几周周单
+        podate = podate + datetime.timedelta(days=-1)
         while(True):
-            dates1.append({'date':getDateTime(podate),'remark':remark})
+            podate = podate + datetime.timedelta(days=1)
+            Normaldates.append({'date':getDateTime(podate),'remark':remark})
+            if podate.weekday() != 6: continue
 
             # 周日
-            if podate.weekday() == 6:
-                # 无下周周单, 下周的周数已到
-                #if datetime.date.today().weekday() < startWeekDay or ppoweeks==0:
-                if not canDoNextWeek or ppoweeks == 0:
-                    break
+            if not canDoNextWeek or ppoweeks == 0: break
 
-                remark = 'Next Week'
-                ppoweeks = ppoweeks - 1
+            remark = 'Next Week'
+            ppoweeks = ppoweeks - 1
 
-            podate = podate + datetime.timedelta(days=1)
-
-        ret['dates'] = dates1 + dates2
+        ret['dates'] = Normaldates + Additiondates
         return ret
 
     def updatepo(self, costCenterCode, headGuid, orderDate, orderType, orderSubType):

@@ -2,9 +2,7 @@
 
 import datetime
 import pandas as pd
-from flask import current_app
 from sqlalchemy import func, case
-import logging
 
 from ... import SaveDB
 from ....utils.functions import *

@@ -3,6 +3,7 @@ import importlib
 from operator import itemgetter
 from itertools import groupby
 import pandas as pd
+from flask import current_app
 
 from ..entity.EXACT.gbkmut import gbkmut
 from ..entity.erp import Stock

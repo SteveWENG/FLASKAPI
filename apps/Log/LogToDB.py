@@ -15,7 +15,7 @@ class LogToDB(threading.Thread):
 
     def run(self):
         while True:
-            values = self._queue.get()
+            values =  self._queue.get()
             if values==None: break
             if isinstance(values,dict) and values.get('LogRecord'):
                 self._save(values)

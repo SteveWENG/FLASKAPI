@@ -6,9 +6,15 @@ from flask import request, g
 class dbHandler(logging.Handler):
 
     def emit(self, record):
+        dic = {'LogRecord': record}
         try:
-            dic = {'LogRecord': record, 'data': request.json, 'method': request.full_path,
-                   'UserIP': request.remote_addr}
+            try:
+                if request:
+                    dic['data'] = request.json
+                    dic['method'] = request.full_path
+                    dic['UserIP'] = request.remote_addr
+            except:
+                pass
             if g.get('Site'):
                 dic['Site'] = g.get('Site')
             if g.get('User'):
