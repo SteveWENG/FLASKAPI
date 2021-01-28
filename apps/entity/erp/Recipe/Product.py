@@ -51,7 +51,7 @@ class Product(erp):
                            cls.Guid.label('ProductGuid'),cls.ItemCode.label('ProductCode'),
                            cls.ItemName.label('ProductName'),cls.ShareQty,
                            ItemBOM.CostCenterCode,ItemBOM.ItemCode,
-                           ItemBOM.OtherName,ItemBOM.Qty,cls.CreateUser,cls.CreateTime)
+                           ItemBOM.OtherName,ItemBOM.Qty,ItemBOM.PurchasePolicy,cls.CreateUser,cls.CreateTime)
 
         df = pd.read_sql(sql.statement,cls.getBind())
         if df.empty: Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
