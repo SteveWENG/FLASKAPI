@@ -37,10 +37,14 @@ class UserHelper:
     @staticmethod
     def AppData(data):
         try:
-            dataType = data.get('dataType','').lower().split(',')
             li = AppUserData.data(data.get('userGuid',''),data.get('appGuid',''))
             if li.empty:
                 Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF')) # No data
+
+            DataFrameSetNan(li)
+            dataType = list(li.loc[li['ReturnDataType']!='','ReturnDataType']) if data.get('type') else ''
+            if not dataType:
+                dataType = data.get('dataType', '').lower().split(',')
 
             li['Type'] = li['Type'].map(lambda x: getStr(x).lower())
             li['Code'] = li['Code'].map(lambda x: getStr(x))

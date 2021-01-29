@@ -17,6 +17,7 @@ class AppUserData(erp):
     Type = db.Column()
     Code = db.Column()
     Status = db.Column(db.Boolean)
+    ReturnDataType = db.Column()
 
     @classmethod
     def apps(cls, userGuid):
@@ -37,7 +38,8 @@ class AppUserData(erp):
             qry = cls.__AppQuery(userGuid)
             qry = qry.filter(cls.AppGuid.in_([g.get('guid') for g in guids]))\
                 .with_entities(cls.AppGuid, func.coalesce(cls.Type,RoleUserData.Type).label('Type'),
-                               func.coalesce(cls.Code,RoleUserData.Code).label('Code'))\
+                               func.coalesce(cls.Code,RoleUserData.Code).label('Code'),
+                               func.coalesce(cls.ReturnDataType,RoleUserData.ReturnDataType).label('ReturnDataType'))\
                 .distinct()
 
             dfdata = pd.read_sql(qry.statement, cls.getBind())

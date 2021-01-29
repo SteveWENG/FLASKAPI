@@ -16,6 +16,7 @@ class RoleUserData(erp):
     UserGuid = db.Column()
     Type = db.Column()
     Code = db.Column()
+    ReturnDataType = db.Column()
 
     @classmethod
     def list(cls):
