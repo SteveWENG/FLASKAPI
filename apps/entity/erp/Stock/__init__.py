@@ -219,8 +219,10 @@ class TransData(erp):
         df1 = cls._list(filters.copy(),startDate,'',openning,type)
         df2 = cls._list(filters.copy(),startDate,endDate,openning,type)
         '''
-        df1 = MyProcess(cls._list,filters.copy(),startDate,'',openning,type).get()
-        df2 = MyProcess(cls._list,filters.copy(),startDate,endDate,openning,type).get()
+        df1 = MyProcess(cls._list,filters.copy(),startDate,'',openning,type)
+        df2 = MyProcess(cls._list,filters.copy(),startDate,endDate,openning,type)
+        df1 = df1.get()
+        df2 = df2.get()
 
         df = pd.DataFrame([])
         if not df1.empty: df = df.append(df1)

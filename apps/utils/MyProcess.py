@@ -3,7 +3,7 @@
 from multiprocessing.dummy import Process
 from multiprocessing import Queue
 
-from flask import current_app, g
+from flask import current_app, g, request
 
 from ..Log.LogToDB import LogToDB
 
@@ -15,6 +15,8 @@ class MyProcess(Process):
         self._func = func
         self._args = args
         self._LogGuid = g.LogGuid
+        self._UserIP = request.remote_addr
+        self._method = request.full_path
 
         self.start()
 
@@ -22,7 +24,7 @@ class MyProcess(Process):
         with self._app.app_context():
             if 'LogQueue' not in dir(g):
                 g.LogQueue = Queue()
-                LogToDB(g.LogQueue,self._LogGuid)
+                LogToDB(g.LogQueue,self._LogGuid,self._UserIP,self._method)
             self._result = self._func(*self._args)
 
     def get(self):

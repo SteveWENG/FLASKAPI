@@ -10,18 +10,20 @@ from . import Log
 from ..utils.functions import *
 
 class LogToDB(Process):
-    def __init__(self, que, guid):
+    def __init__(self, que, guid=getGUID(), userIP='',method=''):
         Process.__init__(self)
         self._queue = que
         self._guid = guid
 
         self._submitdata = ''
-        self._method = ''
-        self._UserIP = ''
+        self._method = method
+        self._UserIP = userIP
         try:
             self._submitdata = str(request.json)
-            self._method = request.full_path
-            self._UserIP = request.remote_addr
+            if not self._method:
+                self._method = request.full_path
+            if not self._UserIP:
+                self._UserIP = request.remote_addr
         except:
             pass
 

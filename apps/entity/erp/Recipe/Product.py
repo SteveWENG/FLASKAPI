@@ -8,7 +8,8 @@ from pandas import merge
 from sqlalchemy import func, and_
 from sqlalchemy.ext.hybrid import hybrid_property
 
-from apps.utils.functions import *
+from ....utils.MyProcess import MyProcess
+from ....utils.functions import *
 from .ItemClass import ItemClass
 from ..Item.PriceList import PriceList
 from ..common.CostCenter import CostCenter
@@ -53,18 +54,15 @@ class Product(erp):
                            ItemBOM.CostCenterCode,ItemBOM.ItemCode,
                            ItemBOM.OtherName,ItemBOM.Qty,ItemBOM.PurchasePolicy,cls.CreateUser,cls.CreateTime)
 
-        df = pd.read_sql(sql.statement,cls.getBind())
-        if df.empty: Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
-        '''
-        def _test(sql,bind):
-            df = pd.read_sql(sql.statement,bind)
-        with current_app._get_current_object().app_context():
-            t = threading.Thread(target=_test,args=(sql,cls.getBind(),))
-            t.start()
-            t.join()
-        '''
+        df = MyProcess(pd.read_sql,sql.statement,cls.getBind())
+        tmpdf = MyProcess(PriceList.list,division, costCenterCode, date, 'Food', False)
+        df = df.get()
+        tmpdf = tmpdf.get()
+
+        if df.empty or tmpdf.empty:
+            Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
+
         # PriceList
-        tmpdf = PriceList.list(division,costCenterCode, date, 'Food', False)
         tmpdf['PurBOMConversion'] = tmpdf['PurStkConversion'] * tmpdf['StkBOMConversion']
         tmpdf.drop(['PurStkConversion', 'StkBOMConversion','StockUnit'], axis=1, inplace=True)
         df = merge(df,tmpdf, how='left',left_on='ItemCode',right_on='ItemCode')
