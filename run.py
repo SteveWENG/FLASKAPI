@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
-import queue
 
+#import queue
+from multiprocessing import Queue
 from flask import jsonify, g
 # from apps import create_app
 import apps
 from apps.Log.LogToDB import LogToDB
+from apps.utils.functions import getGUID
 
 app = apps.create_app()
 
@@ -14,8 +16,9 @@ def show():
 
 @app.before_request
 def before_request(*args, **kwargs):
-    g.LogQueue = queue.Queue()
-    LogToDB(g.LogQueue)
+    g.LogQueue = Queue()
+    g.LogGuid = getGUID()
+    LogToDB(g.LogQueue,g.LogGuid)
 
     app.logger.info('Started')
 

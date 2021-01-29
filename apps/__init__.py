@@ -1,5 +1,4 @@
 import logging
-
 from flask import Flask, current_app
 from flask_cors import CORS
 from werkzeug.utils import import_string
