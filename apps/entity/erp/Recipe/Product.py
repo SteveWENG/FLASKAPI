@@ -39,9 +39,11 @@ class Product(erp):
         return self.LangColumn('ItemName_')
 
     @classmethod
-    def list(cls,division, costCenterCode, date):
+    def list(cls,division, costCenterCode, date,type):
         if not division:
             division = CostCenter.GetDivision(costCenterCode)
+
+        type = type.lower()
 
         # BOM
         sql = cls.query.filter(cls.Division==division, cls.Status=='active',ItemBOM.DeleteTime==None,
@@ -65,42 +67,44 @@ class Product(erp):
         # PriceList
         pricelist['PurBOMConversion'] = pricelist['PurStkConversion'] * pricelist['StkBOMConversion']
         pricelist.drop(['PurStkConversion', 'StkBOMConversion','StockUnit'], axis=1, inplace=True)
-        df = merge(product,pricelist, how='outer',left_on='ItemCode',right_on='ItemCode')
+        tmphow = 'left'
+        if type == 'menu': tmphow = 'outer'
+        df = merge(product,pricelist, how=tmphow,left_on='ItemCode',right_on='ItemCode')
         DataFrameSetNan(df)
         df['ItemType'] = df['ProductCode'].map(lambda x: 'FG' if x else 'RM')
+        product = df
+        if type == 'menu':
+            product = df[df['ItemType']=='FG']
 
         # Product -> BOM
-        def _product(df):
-            groupbyFields = ['CategoriesClassGuid','CookwayClassGuid','ItemShapeGuid','ProductGuid',
-                             'ProductCode','ProductName','ShareQty','CreateUser','CreateTime','ItemType']
+        groupbyFields = ['CategoriesClassGuid','CookwayClassGuid','ItemShapeGuid','ProductGuid',
+                         'ProductCode','ProductName','ShareQty','CreateUser','CreateTime','ItemType']
 
-            return df.groupby(by=groupbyFields)\
-                .apply(lambda x: pd.Series({'ItemCost': (x['Price']*x['Qty']/x['PurBOMConversion']).sum(),
-                                            'ItemBOM': [reduce(lambda x1, x2: x1 + x2,
-                                                               [[{k: v for k, v in l.items()
-                                                                  if k not in groupbyFields and v}]
-                                                                for l in x.sort_values(by=['ItemCode'])
-                                                               .to_dict('records')])]}))\
-                .reset_index().rename(columns={'ProductGuid':'ItemGuid',
-                                               'ProductCode':'ItemCode',
-                                               'ProductName':'ItemName'})
-
-        product = MyProcess(_product,df[df['ItemType']=='FG'])
+        product = product.groupby(by=groupbyFields)\
+            .apply(lambda x: pd.Series({'ItemCost': (x['Price']*x['Qty']/x['PurBOMConversion']).sum(),
+                                        'ItemBOM': [reduce(lambda x1, x2: x1 + x2,
+                                                           [[{k: v for k, v in l.items()
+                                                              if k not in groupbyFields and v}]
+                                                            for l in x.sort_values(by=['ItemCode'])
+                                                           .to_dict('records')])]}))\
+            .reset_index().rename(columns={'ProductGuid':'ItemGuid',
+                                           'ProductCode':'ItemCode',
+                                           'ProductName':'ItemName'})
+        product['ItemUnit'] = 'pc'
 
         # Product category
         itemClass =ItemClass.list(2)
-        rms = df.loc[df['ItemType'] == 'RM',
-                     ['ClassCode','ClassName','ItemCode','ItemName','PurUnit','Price','ItemType']]\
-            .rename(columns={'PurUnit':'ItemUnit','Price':'ItemCost',
-                             'ClassCode':'CategoriesClassGuid','ClassName':'CategoriesClassName'})
-
-        product = product.get()
-        product['ItemUnit'] = 'pc'
         for l in ['CategoriesClass','CookwayClass','ItemShape']:
             product = merge(product,itemClass,how='left',left_on=(l+'Guid'),right_on='guid')\
                 .drop(['guid'],axis=1)\
                 .rename(columns={'ClassName':l+'Name','Sort':l+'Sort'})
 
-        df = product.append(rms)
-        DataFrameSetNan(df)
-        return getdict(df.sort_values(by=['ItemType','CategoriesClassSort','ItemCode']))
+        if type == 'menu':
+            rms = df.loc[df['ItemType'] == 'RM',
+                         ['ClassCode', 'ClassName', 'ItemCode', 'ItemName', 'PurUnit', 'Price', 'ItemType']] \
+                .rename(columns={'PurUnit': 'ItemUnit', 'Price': 'ItemCost',
+                                 'ClassCode': 'CategoriesClassGuid', 'ClassName': 'CategoriesClassName'})
+            product = product.append(rms)
+
+        DataFrameSetNan(product)
+        return getdict(product.sort_values(by=['ItemType','CategoriesClassSort','ItemCode']))
