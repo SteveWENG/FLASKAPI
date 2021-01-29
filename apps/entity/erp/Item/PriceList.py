@@ -82,11 +82,14 @@ class PriceList(erp):
     def list(cls,division,costCenterCode,date,type,needSuppliers=True):
         if not division: division = CostCenter.GetDivision(costCenterCode)
 
-        tmpcontrols = cls.controls(division,costCenterCode,date,type)
-        classFields = [cls.ClassCode(l['ClassIndex'])
-                       for l in getdict(tmpcontrols.loc[
-                                            (tmpcontrols['ClassIndex'] !='')&(tmpcontrols['ClassCode'] !=''),
-                                            ['ClassIndex','ClassCode']])]
+        tmpcontrols = pd.DataFrame([])
+        classFields = []
+        if costCenterCode:
+            tmpcontrols = cls.controls(division,costCenterCode,date,type)
+            classFields = [cls.ClassCode(l['ClassIndex'])
+                           for l in getdict(tmpcontrols.loc[
+                                                (tmpcontrols['ClassIndex'] !='')&(tmpcontrols['ClassCode'] !=''),
+                                                ['ClassIndex','ClassCode']])]
 
         sql = cls.query.filter(cls.Division==division,cls.ValidFrom<=date,cls.ValidTo>=date)\
             .with_entities(cls.ItemCode,cls.ItemName.label('ItemName'),

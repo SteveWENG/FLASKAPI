@@ -39,17 +39,21 @@ class Product(erp):
         return self.LangColumn('ItemName_')
 
     @classmethod
-    def list(cls,division, costCenterCode, date,type):
-        if not division:
+    def list(cls,division, costCenterCode, date,fortype):
+        if not division and not costCenterCode:
+            Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
+
+        if division:
+            if not costCenterCode: fortype = 'recipe'
+        else:
             division = CostCenter.GetDivision(costCenterCode)
 
-        type = type.lower()
-
+        filters = [cls.Division==division, cls.Status=='active',ItemBOM.DeleteTime==None,
+                   ~cls.BOMs.any(ItemBOM.ItemCode.like('[AB]%'))]
+        if costCenterCode:
+            filters.append(func.coalesce(ItemBOM.CostCenterCode,costCenterCode)==costCenterCode)
         # BOM
-        sql = cls.query.filter(cls.Division==division, cls.Status=='active',ItemBOM.DeleteTime==None,
-                               func.coalesce(ItemBOM.CostCenterCode,costCenterCode)==costCenterCode,
-                               ~cls.BOMs.any(ItemBOM.ItemCode.like('[AB]%')))\
-            .join(ItemBOM,cls.Guid==ItemBOM.ProductGuid)\
+        sql = cls.query.filter(*filters).join(ItemBOM,cls.Guid==ItemBOM.ProductGuid)\
             .with_entities(cls.CategoriesClassGuid,cls.CookwayClassGuid,cls.ItemShapeGuid,
                            cls.Guid.label('ProductGuid'),cls.ItemCode.label('ProductCode'),
                            cls.ItemName.label('ProductName'),cls.ShareQty,
@@ -68,12 +72,12 @@ class Product(erp):
         pricelist['PurBOMConversion'] = pricelist['PurStkConversion'] * pricelist['StkBOMConversion']
         pricelist.drop(['PurStkConversion', 'StkBOMConversion','StockUnit'], axis=1, inplace=True)
         tmphow = 'left'
-        if type == 'menu': tmphow = 'outer'
+        if fortype == 'menu': tmphow = 'outer'
         df = merge(product,pricelist, how=tmphow,left_on='ItemCode',right_on='ItemCode')
         DataFrameSetNan(df)
         df['ItemType'] = df['ProductCode'].map(lambda x: 'FG' if x else 'RM')
         product = df
-        if type == 'menu':
+        if fortype == 'menu':
             product = df[df['ItemType']=='FG']
 
         # Product -> BOM
@@ -99,7 +103,7 @@ class Product(erp):
                 .drop(['guid'],axis=1)\
                 .rename(columns={'ClassName':l+'Name','Sort':l+'Sort'})
 
-        if type == 'menu':
+        if fortype == 'menu':
             rms = df.loc[df['ItemType'] == 'RM',
                          ['ClassCode', 'ClassName', 'ItemCode', 'ItemName', 'PurUnit', 'Price', 'ItemType']] \
                 .rename(columns={'PurUnit': 'ItemUnit', 'Price': 'ItemCost',

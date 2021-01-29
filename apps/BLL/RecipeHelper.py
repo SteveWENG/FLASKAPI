@@ -8,4 +8,4 @@ class RecipeHelper:
 
     @staticmethod
     def list(data):
-        return Product.list(None,data.get('costCenterCode'),data.get('date'),data.get('type'))
+        return Product.list(data.get('division'),data.get('costCenterCode'),data.get('date'),data.get('type'))
