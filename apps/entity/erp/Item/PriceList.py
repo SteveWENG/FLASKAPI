@@ -45,7 +45,11 @@ class PriceList(erp):
 
     @hybrid_method
     def ClassCode(self,index):
-        return self.getColumn('Class%sCode' % index)
+        return self.getColumn('Class%sCode' % str(index).zfill(2))
+
+    @hybrid_method
+    def ClassName(self, index):
+        return self.getColumn('Class%sName' % str(index).zfill(2))
 
     @classmethod
     def list_del(cls, division, itemCodes, *supplierCodes):
@@ -86,6 +90,8 @@ class PriceList(erp):
 
         sql = cls.query.filter(cls.Division==division,cls.ValidFrom<=date,cls.ValidTo>=date)\
             .with_entities(cls.ItemCode,cls.ItemName.label('ItemName'),
+                           cls.ClassCode(3).label('ClassCode'),
+                           (cls.ClassName(2)+'/'+cls.ClassName(3)).label('ClassName'),
                            cls.SupplierCode.label('SupplierCode'),cls.SupplierCode.label('SupplierName'),
                            cls.Price,cls.Tax,
                            cls.PurUnit.label('PurUnit'),cls.StockUnit.label('StockUnit'),
@@ -105,7 +111,7 @@ class PriceList(erp):
                                                 for l in g.to_dict('records')])]
                 return pd.Series(dic)
 
-            return li.groupby(by=['ItemCode','ItemName','PurUnit','StockUnit',
+            return li.groupby(by=['ClassCode','ClassName','ItemCode','ItemName','PurUnit','StockUnit',
                                   'BOMUnit','PurStkConversion','StkBOMConversion'])\
                 .apply(_apply).reset_index()
 

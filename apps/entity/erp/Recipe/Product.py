@@ -54,39 +54,53 @@ class Product(erp):
                            ItemBOM.CostCenterCode,ItemBOM.ItemCode,
                            ItemBOM.OtherName,ItemBOM.Qty,ItemBOM.PurchasePolicy,cls.CreateUser,cls.CreateTime)
 
-        df = MyProcess(pd.read_sql,sql.statement,cls.getBind())
-        tmpdf = MyProcess(PriceList.list,division, costCenterCode, date, 'Food', False)
-        df = df.get()
-        tmpdf = tmpdf.get()
+        product = MyProcess(pd.read_sql,sql.statement,cls.getBind())
+        pricelist = MyProcess(PriceList.list,division, costCenterCode, date, 'Food', False)
+        product = product.get()
+        pricelist = pricelist.get()
 
-        if df.empty or tmpdf.empty:
+        if product.empty or pricelist.empty:
             Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
 
         # PriceList
-        tmpdf['PurBOMConversion'] = tmpdf['PurStkConversion'] * tmpdf['StkBOMConversion']
-        tmpdf.drop(['PurStkConversion', 'StkBOMConversion','StockUnit'], axis=1, inplace=True)
-        df = merge(df,tmpdf, how='left',left_on='ItemCode',right_on='ItemCode')
+        pricelist['PurBOMConversion'] = pricelist['PurStkConversion'] * pricelist['StkBOMConversion']
+        pricelist.drop(['PurStkConversion', 'StkBOMConversion','StockUnit'], axis=1, inplace=True)
+        df = merge(product,pricelist, how='outer',left_on='ItemCode',right_on='ItemCode')
         DataFrameSetNan(df)
+        df['ItemType'] = df['ProductCode'].map(lambda x: 'FG' if x else 'RM')
 
         # Product -> BOM
-        groupbyFields = ['CategoriesClassGuid','CookwayClassGuid','ItemShapeGuid','ProductGuid',
-                         'ProductCode','ProductName','ShareQty','CreateUser','CreateTime']
+        def _product(df):
+            groupbyFields = ['CategoriesClassGuid','CookwayClassGuid','ItemShapeGuid','ProductGuid',
+                             'ProductCode','ProductName','ShareQty','CreateUser','CreateTime','ItemType']
 
-        df = df.groupby(by=groupbyFields)\
-            .apply(lambda x: pd.Series({'ItemCost': (x['Price']*x['Qty']/x['PurBOMConversion']).sum(),
-                                        'ItemBOM': [reduce(lambda x1, x2: x1 + x2,
-                                                           [[{k: v for k, v in l.items()
-                                                              if k not in groupbyFields and v}]
-                                                            for l in x.sort_values(by=['ItemCode'])
-                                                           .to_dict('records')])]}))\
-            .reset_index().rename(columns={'ProductGuid':'ItemGuid','ProductCode':'ItemCode','ProductName':'ItemName'})
+            return df.groupby(by=groupbyFields)\
+                .apply(lambda x: pd.Series({'ItemCost': (x['Price']*x['Qty']/x['PurBOMConversion']).sum(),
+                                            'ItemBOM': [reduce(lambda x1, x2: x1 + x2,
+                                                               [[{k: v for k, v in l.items()
+                                                                  if k not in groupbyFields and v}]
+                                                                for l in x.sort_values(by=['ItemCode'])
+                                                               .to_dict('records')])]}))\
+                .reset_index().rename(columns={'ProductGuid':'ItemGuid',
+                                               'ProductCode':'ItemCode',
+                                               'ProductName':'ItemName'})
+
+        product = MyProcess(_product,df[df['ItemType']=='FG'])
 
         # Product category
-        itemClass = ItemClass.list()
+        itemClass =ItemClass.list(2)
+        rms = df.loc[df['ItemType'] == 'RM',
+                     ['ClassCode','ClassName','ItemCode','ItemName','PurUnit','Price','ItemType']]\
+            .rename(columns={'PurUnit':'ItemUnit','Price':'ItemCost',
+                             'ClassCode':'CategoriesClassGuid','ClassName':'CategoriesClassName'})
+
+        product = product.get()
+        product['ItemUnit'] = 'pc'
         for l in ['CategoriesClass','CookwayClass','ItemShape']:
-            sguid = l + 'guid'
-            df = merge(df,itemClass,how='left',left_on=(l+'Guid'),right_on='guid')\
+            product = merge(product,itemClass,how='left',left_on=(l+'Guid'),right_on='guid')\
                 .drop(['guid'],axis=1)\
                 .rename(columns={'ClassName':l+'Name','Sort':l+'Sort'})
+
+        df = product.append(rms)
         DataFrameSetNan(df)
-        return getdict(df.sort_values(by=['CategoriesClassSort','ItemCode']))
+        return getdict(df.sort_values(by=['ItemType','CategoriesClassSort','ItemCode']))

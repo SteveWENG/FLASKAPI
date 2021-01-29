@@ -15,6 +15,7 @@ class MyProcess(Process):
         self._func = func
         self._args = args
         self._LogGuid = g.LogGuid
+        self._LangCode = g.LangCode
         self._UserIP = request.remote_addr
         self._method = request.full_path
 
@@ -25,6 +26,9 @@ class MyProcess(Process):
             if 'LogQueue' not in dir(g):
                 g.LogQueue = Queue()
                 LogToDB(g.LogQueue,self._LogGuid,self._UserIP,self._method)
+            if 'LangCode' not in dir(g):
+                g.LangCode = self._LangCode
+
             self._result = self._func(*self._args)
 
     def get(self):

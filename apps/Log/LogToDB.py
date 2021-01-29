@@ -107,7 +107,8 @@ class LogToDB(Process):
         if level == 'ERROR':
             self._log.message = getStr(self._log.message) + ('\n' if self._log.message else '') + traceback.format_exc()
 
-        self._log.data = '\n'.join(self._data)
+        if self._data:
+            self._log.data = '\n'.join(self._data)
         self._log.Id = self._log.save()
 
 
