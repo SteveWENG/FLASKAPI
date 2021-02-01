@@ -19,7 +19,7 @@ class LogToDB(Process):
         self._method = method
         self._UserIP = userIP
         try:
-            self._submitdata = str(request.json)
+            self._submitdata = request.json
             if not self._method:
                 self._method = request.full_path
             if not self._UserIP:
@@ -39,7 +39,7 @@ class LogToDB(Process):
     def _save(self,dic):
         logger = dic['LogRecord'].__dict__['name'] + ' ' + dic['LogRecord'].__dict__['module']
         level = dic['LogRecord'].__dict__['levelname']
-        # if not self._submitdata and level == 'INFO': return
+        if not self._submitdata and level == 'INFO': return
 
         def checkSQL_Vals(vals):
             if not self._data or not vals: return False
@@ -102,7 +102,7 @@ class LogToDB(Process):
         else:
             self._log.message = getStr(self._log.message) + ('\n' if self._log.message else '') \
                                + dic['LogRecord'].__dict__['message']
-            self._data.append(self._submitdata)
+            self._data.append(str(self._submitdata))
 
         if level == 'ERROR':
             self._log.message = getStr(self._log.message) + ('\n' if self._log.message else '') + traceback.format_exc()
