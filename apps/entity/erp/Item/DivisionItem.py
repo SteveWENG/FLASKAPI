@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
 
-import pandas as pd
 from sqlalchemy.ext.hybrid import hybrid_property
 
 from ...erp import erp, db
 
-class ItemMast(erp):
+class DivisionItem(erp):
     __tablename__= 'DM_D_DIGIMENU_STDPURCHASEPRICE'
 
     Division = db.Column()
