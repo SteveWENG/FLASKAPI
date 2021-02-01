@@ -293,18 +293,15 @@ class TransData(erp):
             qry = qry.outerjoin(Item, cls.ItemCode == Item.ItemCode)
 
         if type == 'dailyporeceipt':
-            qry = qry.join(Supplier, and_(CostCenter.Division == Supplier.Division,
-                                          cls.SupplierCode == Supplier.SupplierCode))\
-                .join(OrderLine,cls.OrderLineGuid==OrderLine.Guid)
-            fields += [((func.coalesce(OrderLine.ItemTax,0)/100+1)*cls.ItemCost).label('CostWithTax'),
-                       ((func.coalesce(OrderLine.ItemTax,0)/100+1)*cls.ItemCost*cls.Qty).label('AmtWithTax')]
+            fields += [((func.coalesce(cls.InTax,0)/100+1)*cls.ItemCost).label('CostWithTax'),
+                       ((func.coalesce(cls.InTax,0)/100+1)*cls.ItemCost*cls.Qty).label('AmtWithTax')]
         elif type == 'batch' or endDate: # 现在查询batch，或明细
             qry = qry.outerjoin(Supplier, and_(CostCenter.Division == Supplier.Division,
                                                cls.SupplierCode == Supplier.SupplierCode))
 
         if endDate: # 现在查询明细
             filters = filters + [cls.TransDate>=startDate, cls.TransDate<=endDate]
-            fields = fields + [cls.SupplierCode, Supplier.SupplierName.label('SupplierName'), cls.Qty,
+            fields = fields + [cls.SupplierCode, cls.SupplierName, cls.Qty,
                                func.coalesce(cls.ItemCost,cls.ItemPrice).label('Cost')]
             if type != 'batch':
                 fields = fields + [cls.Remark, cls.TransDate,cls.BusinessType,cls.BatchGuid]
