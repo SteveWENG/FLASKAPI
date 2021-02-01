@@ -232,11 +232,9 @@ class TransData(erp):
         if not df1.empty: df = df.append(df1)
         if not df2.empty:
             if type == 'dailyporeceipt':
-                dropFields = ['BusinessType','BatchGuid']
+                dropFields = ['BusinessType','BatchGuid','InTax']
                 if supplierCode:
                     dropFields += ['SupplierCode', 'SupplierName']
-                if df2[df2['Cost'] != df2['CostWithTax']].empty:
-                    dropFields += ['CostWithTax', 'AmtWithTax']
                 if dropFields:
                     df2.drop(dropFields, axis=1, inplace=True)
             df = df.append(df2)
@@ -293,8 +291,7 @@ class TransData(erp):
             qry = qry.outerjoin(Item, cls.ItemCode == Item.ItemCode)
 
         if type == 'dailyporeceipt':
-            fields += [((func.coalesce(cls.InTax,0)/100+1)*cls.ItemCost).label('CostWithTax'),
-                       ((func.coalesce(cls.InTax,0)/100+1)*cls.ItemCost*cls.Qty).label('AmtWithTax')]
+            fields.append(cls.InTax)
         elif type == 'batch' or endDate: # 现在查询batch，或明细
             qry = qry.outerjoin(Supplier, and_(CostCenter.Division == Supplier.Division,
                                                cls.SupplierCode == Supplier.SupplierCode))
@@ -315,8 +312,8 @@ class TransData(erp):
         qry = qry.with_entities(*fields,*sumfields)
         qry = pd.read_sql(qry.statement,cls.getBind())
 
-        if qry.empty:
-            return qry
+        if qry.empty: return qry
+        DataFrameSetNan(qry)
 
         if endDate:
             qry['Amt'] = round(qry['Qty'] * qry['Cost'],6)
@@ -335,5 +332,10 @@ class TransData(erp):
                 qry.drop(['Qty','Amt'], axis=1, inplace=True)
             else: # 期初
                 qry.rename(columns={'Qty': 'QtyOpenning', 'Amt': 'AmtOpenning'}, inplace=True)
+        elif type == 'dailyporeceipt':
+            if qry[qry['InTax'] != 0].empty: return qry
+
+            qry.loc[qry['InTax'] != 0,'CostWithTax'] = round(qry['Cost'] * (1 + qry['InTax'] / 100),8)
+            qry.loc[qry['InTax'] != 0, 'AmtWithTax'] = round(qry['CostWithTax'] * qry['Qty'],8)
 
         return qry
