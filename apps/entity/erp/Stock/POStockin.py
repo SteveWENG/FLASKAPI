@@ -52,10 +52,12 @@ class POStockin(Stockin):
         trans.loc[trans['purQty']>0,'qty'] = trans['purQty'] * trans['purStk_Conversion']
         trans.loc[trans['purQty']>0,'itemCost'] = trans['purPrice'] / trans['purStk_Conversion']
         trans.drop(['purQty', 'purPrice', 'purStk_Conversion'], axis=1, inplace=True)
-
-        if kwargs.get('supplierCode','') != '':
+        '''
+        if kwargs.get('supplierCode',''):
             trans['supplierCode'] = kwargs.get('supplierCode','')
-
+        if kwargs.get('supplierName','') != '':
+            trans['supplierName'] = kwargs.get('supplierName','')
+        '''
         return trans# stockin.to_dict('records')
 
     #1 检查对应的PO是否已入库

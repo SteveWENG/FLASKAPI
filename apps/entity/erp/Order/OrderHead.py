@@ -278,7 +278,7 @@ class OrderHead(erp):
             .filter(*filters)\
             .with_entities(OrderLine.Guid.label('orderLineGuid'),OrderLine.ItemCode.label('itemCode'),
                            OrderLine.PurchasePrice.label('purPrice'),
-                           OrderLine.CreateTime,
+                           OrderLine.ItemTax.label('inTax'),OrderLine.CreateTime,
                            OrderLine.PurStk_Conversion.label('purStk_Conversion'),
                            OrderLine.RemainQty.label('qty'), OrderLine.Remark.label('remark'))
         tmpdf = pd.read_sql(sql.statement, cls.getBind())

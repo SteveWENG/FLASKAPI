@@ -30,6 +30,7 @@ class MyProcess(Process):
                 g.LangCode = self._LangCode
 
             self._result = self._func(*self._args)
+            g.LogQueue.put(None)
 
     def get(self):
         try:

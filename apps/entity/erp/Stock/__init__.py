@@ -25,6 +25,7 @@ class TransData(erp):
     UOM = db.Column()
     TransDate = db.Column(db.Date)
     SupplierCode = db.Column()
+    SupplierName = db.Column()
     BusinessType = db.Column()
     Remark = db.Column()
     TransGuid = db.Column()
@@ -32,6 +33,7 @@ class TransData(erp):
     StockQty = db.Column(db.Numeric)
     Qty = db.Column(db.Numeric)
     ItemCost = db.Column(db.Numeric)
+    InTax = db.Column()
     ItemPrice = db.Column(db.Numeric)
     SysGuid = db.Column(server_default='newid()')
     DeleteTime = db.Column(server_default='getdate()')
@@ -55,8 +57,10 @@ class TransData(erp):
                 Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF')) # No data to save
 
             dic = cls.SummaryInfo(data)
-            if data.get('supplierCode','') != '':
+            if data.get('supplierCode',''):
                 dic['supplierCode'] = data.get('supplierCode')
+            if data.get('supplierName',''):
+                dic['supplierName'] = data.get('supplierName')
 
             itemcodes = set([l.get('itemCode') for l in data.get('data')])
 
