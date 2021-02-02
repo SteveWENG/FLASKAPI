@@ -76,8 +76,9 @@ class MenuOrderHead(erp):
             df.drop(['OrderLineGuid'],axis=1, inplace=True)
             df.rename(columns={'guid':'OrderLineGuid'},inplace=True)
 
-            tmp = ItemClass.list(2).rename(columns={'Sort':'ClassSort'})
-            df = merge(df,tmp,how='left',left_on='CategoriesClassGuid',right_on='guid' )
+            df = merge(df,ItemClass.list(2).rename(columns={'Sort':'ClassSort'}),
+                       how='left',left_on='CategoriesClassGuid',right_on='guid' )\
+                .rename(columns={'CategoriesClassGuid':'ClassGuid'})
 
             DataFrameSetNan(df)
 
@@ -127,16 +128,10 @@ class MenuOrderHead(erp):
                                  dates, groupbyFields, cols)
             tdf1 = tdf1.append(df.loc[df['RequireDate'] == '', groupbyFields]).reset_index()
 
-            '''
-            for k, v in dates.items():
-                tdf1.loc[(tdf1['StartDate']<=v) & (tdf1['EndDate']>=v) & (tdf1[k].isna()), k] =\
-                    tdf1.apply(lambda x: {c: '' for c in cols},axis=1)
-                tdf1.loc[(tdf1['StartDate'] > v) | (tdf1['EndDate'] < v), k] = math.nan
-            '''
             tdf1 = _datecols(tdf1,dates)
             cols = ['Id', 'FGGuid', 'ItemGuid', 'ItemCode', 'ItemName', 'ItemCost',
                     'ItemColor', 'ItemUnit', 'RequiredQty', 'PurchasePolicy','RMs']
-            groupbyFields = ['SOItemName', 'SOItemDesc', 'OrderLineGuid', 'ClassName', 'ClassSort']
+            groupbyFields = ['SOItemName', 'SOItemDesc', 'OrderLineGuid', 'ClassGuid','ClassName', 'ClassSort']
             tdf = _groupdf(df[df['Id'] > 0], dates, groupbyFields, cols)
             tdf.fillna(value={k: '' for k in dates.keys()}, inplace=True)
 
