@@ -41,6 +41,7 @@ class Product(erp):
 
     @classmethod
     def list(cls,division, costCenterCode, date,fortype):
+
         if not division and not costCenterCode:
             Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
 
@@ -49,47 +50,55 @@ class Product(erp):
         else:
             division = CostCenter.GetDivision(costCenterCode)
 
-        filters = [cls.Division==division, cls.Status=='active',ItemBOM.DeleteTime==None,
-                   ~cls.BOMs.any(ItemBOM.ItemCode.like('[AB]%'))]
-        fields = [cls.CategoriesClassGuid,cls.CookwayClassGuid,cls.ItemShapeGuid,
-                  cls.Guid.label('ProductGuid'),cls.ItemCode.label('ProductCode'),
-                  cls.ItemName.label('ProductName'),cls.ShareQty,
-                  ItemBOM.CostCenterCode,ItemBOM.ItemCode,
-                  ItemBOM.OtherName,ItemBOM.Qty,ItemBOM.PurchasePolicy,cls.CreateUser,cls.CreateTime]
-        if costCenterCode:
-            filters.append(func.coalesce(ItemBOM.CostCenterCode,costCenterCode)==costCenterCode)
-        # BOM
-        sql = cls.query.filter(*filters).join(ItemBOM,cls.Guid==ItemBOM.ProductGuid)
-        if fortype == 'recipe':
-            sql = sql.outerjoin(DivisionItem,and_(ItemBOM.ItemCode==DivisionItem.ItemCode,
-                                                DivisionItem.Division==division))
-            fields += [ItemBOM.Id,DivisionItem.PurPrice,DivisionItem.BOMUnit.label('BOMUnit'),
-                       DivisionItem.PurBOMConversion.label('PurBOMConversion')]
-        sql = sql.with_entities(*fields)
+        def _list(bind,division, costCenterCode,date,fortype):
+            filters = [cls.Division==division, cls.Status=='active',ItemBOM.DeleteTime==None,
+                       ~cls.BOMs.any(ItemBOM.ItemCode.like('[AB]%'))]
+            fields = [cls.CategoriesClassGuid,cls.CookwayClassGuid,cls.ItemShapeGuid,
+                      cls.Guid.label('ProductGuid'),cls.ItemCode.label('ProductCode'),
+                      cls.ItemName.label('ProductName'),cls.ShareQty,
+                      ItemBOM.CostCenterCode,ItemBOM.ItemCode,
+                      ItemBOM.OtherName,ItemBOM.Qty,ItemBOM.PurchasePolicy,cls.CreateUser,cls.CreateTime]
+            if costCenterCode:
+                filters.append(func.coalesce(ItemBOM.CostCenterCode,costCenterCode)==costCenterCode)
+            # BOM
+            sql = cls.query.filter(*filters).join(ItemBOM,cls.Guid==ItemBOM.ProductGuid)
+            if fortype == 'recipe':
+                sql = sql.outerjoin(DivisionItem,and_(ItemBOM.ItemCode==DivisionItem.ItemCode,
+                                                    DivisionItem.Division==division))
+                fields += [ItemBOM.Id,DivisionItem.PurPrice.label('Price'),DivisionItem.BOMUnit.label('BOMUnit'),
+                           DivisionItem.PurBOMConversion.label('PurBOMConversion')]
+            sql = sql.with_entities(*fields)
+            product = MyProcess(pd.read_sql,sql.statement,bind)
 
-        product = MyProcess(pd.read_sql,sql.statement,cls.getBind())
-        if fortype == 'menu':
-            pricelist = MyProcess(PriceList.list,division, costCenterCode, date, 'Food', False)
-            pricelist = pricelist.get()
-            if pricelist.empty:
+            if fortype == 'menu':
+                pricelist = MyProcess(PriceList.list, division, costCenterCode, date, 'Food', False)
+                pricelist = pricelist.get()
+                if pricelist.empty:
+                    Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
+
+                # PriceList
+                pricelist['PurBOMConversion'] = pricelist['PurStkConversion'] * pricelist['StkBOMConversion']
+                pricelist.drop(['PurStkConversion', 'StkBOMConversion', 'StockUnit'], axis=1, inplace=True)
+
+            product = product.get()
+            if product.empty:
                 Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
 
-            # PriceList
-            pricelist['PurBOMConversion'] = pricelist['PurStkConversion'] * pricelist['StkBOMConversion']
-            pricelist.drop(['PurStkConversion', 'StkBOMConversion','StockUnit'], axis=1, inplace=True)
+            DataFrameSetNan(product)
+            if fortype == 'recipe': return product
 
-        product = product.get()
-        if product.empty:
-            Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
-
-        if fortype == 'recipe':
-            product.rename(columns={'PurPrice':'Price'},inplace=True)
-        else:
-            df = merge(product,pricelist, how='outer',left_on='ItemCode',right_on='ItemCode')
+            df = merge(product, pricelist, how='outer', left_on='ItemCode', right_on='ItemCode')
             DataFrameSetNan(df)
-
             df['ItemType'] = df['ProductCode'].map(lambda x: 'FG' if x else 'RM')
-            product = df[df['ItemType']=='FG']
+            return df
+
+        df = _list(cls.getBind(),division,costCenterCode,date,fortype)
+        DataFrameSetNan(df)
+
+        product = df
+
+        if 'ItemType' in df.columns:
+            product = df[df['ItemType'] == 'FG']
 
         # Product -> BOM
         groupbyFields = ['CategoriesClassGuid', 'CookwayClassGuid', 'ItemShapeGuid', 'ProductGuid',
@@ -113,7 +122,7 @@ class Product(erp):
                 .drop(['guid'],axis=1)\
                 .rename(columns={'ClassName':l+'Name','Sort':l+'Sort'})
 
-        if fortype == 'menu':
+        if 'ItemType' in df.columns:
             rms = df.loc[df['ItemType'] == 'RM',
                          ['ClassCode', 'ClassName', 'ItemCode', 'ItemName', 'PurUnit', 'Price', 'ItemType']] \
                 .rename(columns={'PurUnit': 'ItemUnit', 'Price': 'ItemCost',
