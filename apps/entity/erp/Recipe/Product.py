@@ -95,32 +95,35 @@ class Product(erp):
         df = _list(cls.getBind(),division,costCenterCode,date,fortype)
         DataFrameSetNan(df)
 
-        product = df
-
-        if 'ItemType' in df.columns:
-            product = df[df['ItemType'] == 'FG']
-
         # Product -> BOM
-        groupbyFields = ['CategoriesClassGuid', 'CookwayClassGuid', 'ItemShapeGuid', 'ProductGuid',
-                         'ProductCode', 'ProductName', 'ShareQty', 'CreateUser', 'CreateTime', 'ItemType']
-        product = product.groupby(by=list(set(groupbyFields).intersection(set(product.columns))))\
-            .apply(lambda x: pd.Series({'ItemCost': (x['Price']*x['Qty']/x['PurBOMConversion']).sum(),
-                                        'ItemBOM': [reduce(lambda x1, x2: x1 + x2,
-                                                           [[{k: v for k, v in l.items()
-                                                              if k not in groupbyFields and v}]
-                                                            for l in x.sort_values(by=['ItemCode'])
-                                                           .to_dict('records')])]}))\
-            .reset_index().rename(columns={'ProductGuid':'ItemGuid',
-                                           'ProductCode':'ItemCode',
-                                           'ProductName':'ItemName'})
-        product['ItemUnit'] = 'pc'
+        def _recipes(df):
+            product = df
+            if 'ItemType' in df.columns:
+                product = df[df['ItemType'] == 'FG']
 
-        # Product category
-        itemClass =ItemClass.list(2)
-        for l in ['CategoriesClass','CookwayClass','ItemShape']:
-            product = merge(product,itemClass,how='left',left_on=(l+'Guid'),right_on='guid')\
-                .drop(['guid'],axis=1)\
-                .rename(columns={'ClassName':l+'Name','Sort':l+'Sort'})
+            groupbyFields = ['CategoriesClassGuid', 'CookwayClassGuid', 'ItemShapeGuid', 'ProductGuid',
+                             'ProductCode', 'ProductName', 'ShareQty', 'CreateUser', 'CreateTime', 'ItemType']
+            product = product.groupby(by=list(set(groupbyFields).intersection(set(product.columns))))\
+                .apply(lambda x: pd.Series({'ItemCost': (x['Price']*x['Qty']/x['PurBOMConversion']).sum(),
+                                            'ItemBOM': [reduce(lambda x1, x2: x1 + x2,
+                                                               [[{k: v for k, v in l.items()
+                                                                  if k not in groupbyFields and v}]
+                                                                for l in x.sort_values(by=['ItemCode'])
+                                                               .to_dict('records')])]}))\
+                .reset_index().rename(columns={'ProductGuid':'ItemGuid',
+                                               'ProductCode':'ItemCode',
+                                               'ProductName':'ItemName'})
+            product['ItemUnit'] = 'pc'
+
+            # Product category
+            itemClass =ItemClass.list(2)
+            for l in ['CategoriesClass','CookwayClass','ItemShape']:
+                product = merge(product,itemClass,how='left',left_on=(l+'Guid'),right_on='guid')\
+                    .drop(['guid'],axis=1)\
+                    .rename(columns={'ClassName':l+'Name','Sort':l+'Sort'})
+            return product
+
+        product = _recipes(df)
 
         if 'ItemType' in df.columns:
             rms = df.loc[df['ItemType'] == 'RM',
