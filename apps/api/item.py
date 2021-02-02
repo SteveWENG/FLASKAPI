@@ -15,3 +15,7 @@ def PriceList():
 @bp.route('/recipes',methods=['POST'])
 def recipes():
     return webapi(lambda dic: RecipeHelper.list(dic))
+
+@bp.route('/save',methods=['POST'])
+def save():
+    return webapi(lambda dic: RecipeHelper.save(dic))

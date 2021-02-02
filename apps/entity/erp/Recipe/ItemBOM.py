@@ -10,6 +10,7 @@ class ItemBOM(erp):
     ItemCode = db.Column()
     OtherName = db.Column()
     ItemCost = db.Column()
+    PurBOMConversion = db.Column()
     UOM = db.Column()
     Qty = db.Column()
     Type = db.Column()

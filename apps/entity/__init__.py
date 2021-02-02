@@ -52,13 +52,13 @@ class BaseModel(db.Model):
                 v = getDateTime(v)
             '''
 
-            setattr(self, tmpkey, self._wrap(prop,v,hid))
+            setattr(self, tmpkey, self._wrap(prop,v))
 
-    def _wrap(self,prop,value,HId):
+    def _wrap(self,prop,value,HId=None):
         prop = prop.prop
         if isinstance(prop,properties.RelationshipProperty):
             if isinstance(value, (tuple, list, set, frozenset)):
-                return [prop.mapper.class_({k:v for k,v in val.items() if HId or k.lower() != 'id'})
+                return [prop.mapper.class_({k:v for k,v in val.items()})# if HId or k.lower() != 'id'})
                                             for val in value]
 
         if isinstance(prop, properties.ColumnProperty):

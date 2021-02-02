@@ -9,6 +9,7 @@ from sqlalchemy import func, and_
 from sqlalchemy.ext.hybrid import hybrid_property
 
 from ..Item.DivisionItem import DivisionItem
+from ... import SaveDB
 from ....utils.MyProcess import MyProcess
 from ....utils.functions import *
 from .ItemClass import ItemClass
@@ -24,19 +25,22 @@ class Product(erp):
     Division = db.Column('company')
     Guid = db.Column()
     ItemCode = db.Column()
+    ItemName = db.Column('ItemName_ZH')
+    ItemCost = db.Column()
     ShareQty = db.Column()
     CategoriesClassGuid = db.Column()
     CookwayClassGuid = db.Column()
+    SeasonClassGuid = db.Column()
     ItemShapeGuid = db.Column()
     Status = db.Column()
     CreateUser = db.Column()
     CreateTime = db.Column(server_default='getdate()')
 
-    BOMs = db.relationship('ItemBOM', primaryjoin='Product.Guid == foreign(ItemBOM.ProductGuid)',
+    ItemBOM = db.relationship('ItemBOM', primaryjoin='Product.Guid == foreign(ItemBOM.ProductGuid)',
                           lazy='joined')
 
     @hybrid_property
-    def ItemName(self):
+    def ItemName1(self):
         return self.LangColumn('ItemName_')
 
     @classmethod
@@ -52,8 +56,8 @@ class Product(erp):
 
         def _list(bind,division, costCenterCode,date,fortype):
             filters = [cls.Division==division, cls.Status=='active',ItemBOM.DeleteTime==None,
-                       ~cls.BOMs.any(ItemBOM.ItemCode.like('[AB]%'))]
-            fields = [cls.CategoriesClassGuid,cls.CookwayClassGuid,cls.ItemShapeGuid,
+                       ~cls.ItemBOM.any(ItemBOM.ItemCode.like('[AB]%'))]
+            fields = [cls.CategoriesClassGuid,cls.CookwayClassGuid,cls.SeasonClassGuid,cls.ItemShapeGuid,
                       cls.Guid.label('ProductGuid'),cls.ItemCode.label('ProductCode'),
                       cls.ItemName.label('ProductName'),cls.ShareQty,
                       ItemBOM.CostCenterCode,ItemBOM.ItemCode,
@@ -101,15 +105,15 @@ class Product(erp):
             if 'ItemType' in df.columns:
                 product = df[df['ItemType'] == 'FG']
 
-            groupbyFields = ['CategoriesClassGuid', 'CookwayClassGuid', 'ItemShapeGuid', 'ProductGuid',
+            groupbyFields = ['CategoriesClassGuid', 'CookwayClassGuid','SeasonClassGuid', 'ItemShapeGuid', 'ProductGuid',
                              'ProductCode', 'ProductName', 'ShareQty', 'CreateUser', 'CreateTime', 'ItemType']
             product = product.groupby(by=list(set(groupbyFields).intersection(set(product.columns))))\
                 .apply(lambda x: pd.Series({'ItemCost': (x['Price']*x['Qty']/x['PurBOMConversion']).sum(),
-                                            'ItemBOM': [reduce(lambda x1, x2: x1 + x2,
+                                            'ItemBOM': reduce(lambda x1, x2: x1 + x2,
                                                                [[{k: v for k, v in l.items()
                                                                   if k not in groupbyFields and v}]
                                                                 for l in x.sort_values(by=['ItemCode'])
-                                                               .to_dict('records')])]}))\
+                                                               .to_dict('records')])}))\
                 .reset_index().rename(columns={'ProductGuid':'ItemGuid',
                                                'ProductCode':'ItemCode',
                                                'ProductName':'ItemName'})
@@ -117,7 +121,7 @@ class Product(erp):
 
             # Product category
             itemClass =ItemClass.list(2)
-            for l in ['CategoriesClass','CookwayClass','ItemShape']:
+            for l in ['CategoriesClass','CookwayClass','SeasonClass','ItemShape']:
                 product = merge(product,itemClass,how='left',left_on=(l+'Guid'),right_on='guid')\
                     .drop(['guid'],axis=1)\
                     .rename(columns={'ClassName':l+'Name','Sort':l+'Sort'})
@@ -135,3 +139,14 @@ class Product(erp):
         DataFrameSetNan(product)
         ttt = [t for t in ['ItemType','CategoriesClassSort', 'ItemCode'] if t in set(product.columns)]
         return getdict(product.sort_values(by=ttt))
+
+    def save(self):
+        # New or modify
+        if not self.Id:
+            self.Id = None
+            self.Guid = getGUID()
+            for bom in self.ItemBOM:
+                bom.Id = None
+        with SaveDB() as session:
+            session.merge(self)
+            return lang('56CF8259-D808-4796-A077-11124C523F6F')
