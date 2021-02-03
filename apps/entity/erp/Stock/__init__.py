@@ -291,7 +291,7 @@ class TransData(erp):
             qry = qry.outerjoin(Item, cls.ItemCode == Item.ItemCode)
 
         if type == 'dailyporeceipt':
-            fields.append(cls.InTax)
+            fields.append(func.coalesce(cls.InTax,0).label('InTax'))
         elif type == 'batch' or endDate: # 现在查询batch，或明细
             qry = qry.outerjoin(Supplier, and_(CostCenter.Division == Supplier.Division,
                                                cls.SupplierCode == Supplier.SupplierCode))
@@ -333,7 +333,7 @@ class TransData(erp):
             else: # 期初
                 qry.rename(columns={'Qty': 'QtyOpenning', 'Amt': 'AmtOpenning'}, inplace=True)
         elif type == 'dailyporeceipt':
-            if qry[qry['InTax'] != 0].empty: return qry
+            if qry[(qry['InTax'] != 0) ].empty: return qry
 
             qry.loc[qry['InTax'] != 0,'CostWithTax'] = round(qry['Cost'] * (1 + qry['InTax'] / 100),8)
             qry.loc[qry['InTax'] != 0, 'AmtWithTax'] = round(qry['CostWithTax'] * qry['Qty'],8)

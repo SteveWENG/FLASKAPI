@@ -50,11 +50,12 @@ class MenuOrderHead(erp):
 
     def list(self,costCenterCode,startDate):
         sql,filters,endDate = self._list(costCenterCode,startDate)
-
-        sql = sql.join(CONTRACT,and_(MenuOrderHead.OrderLineGuid==CONTRACT.guid,
-                                MenuOrderHead.RequireDate>=CONTRACT.StartDate,
-                                MenuOrderHead.RequireDate<=CONTRACT.EndDate))\
-            .outerjoin(MenuOrderFG,MenuOrderHead.HeadGuid==MenuOrderFG.HeadGuid)\
+        '''
+        .join(CONTRACT, and_(MenuOrderHead.OrderLineGuid == CONTRACT.guid,
+                             MenuOrderHead.RequireDate >= CONTRACT.StartDate,
+                             MenuOrderHead.RequireDate <= CONTRACT.EndDate)) \
+        '''
+        sql = sql.outerjoin(MenuOrderFG,MenuOrderHead.HeadGuid==MenuOrderFG.HeadGuid)\
             .outerjoin(Product,MenuOrderFG.ItemGuid==Product.Guid) \
             .outerjoin(Item, MenuOrderFG.ItemCode == Item.ItemCode) \
             .with_entities(MenuOrderHead.OrderLineGuid,
@@ -68,33 +69,52 @@ class MenuOrderHead(erp):
         df = pd.read_sql(sql.statement,self.getBind())
 
         dfmeals = CONTRACT.meals(costCenterCode,startDate,endDate)
-        isNewMenu = df.empty
-        if isNewMenu:
-            df = dfmeals
-        else:
-            df = merge(dfmeals, df, how='left', left_on='guid', right_on='OrderLineGuid')
-            df.drop(['OrderLineGuid'],axis=1, inplace=True)
-            df.rename(columns={'guid':'OrderLineGuid'},inplace=True)
 
-            df = merge(df,ItemClass.list(2).rename(columns={'Sort':'ClassSort'}),
-                       how='left',left_on='CategoriesClassGuid',right_on='guid' )\
-                .rename(columns={'CategoriesClassGuid':'ClassGuid'})
+        dates = self._dates(startDate)
+        mealcols = ['MealQty', 'MealPrice']
+        def _datecols(df):
+            for k, v in dates.items():
+                tmpf = (df['StartDate'] <= v) & (df['EndDate'] >= v)
+                if k in list(df.columns): tmpf &= (df[k].isna())  # 无效的订单行
+
+                df.loc[tmpf, k] = df.apply(lambda x: {c: '' for c in mealcols}, axis=1)
+                df.loc[(df['StartDate'] > v) | (df['EndDate'] < v), k] = math.nan
 
             DataFrameSetNan(df)
+            return df
 
-            rms = MenuOrderRM.query.join(MenuOrderFG, MenuOrderRM.FGGuid == MenuOrderFG.FGGuid) \
-                .join(MenuOrderHead, MenuOrderFG.HeadGuid == MenuOrderHead.HeadGuid).filter(*filters) \
-                .join(Item, MenuOrderRM.ItemCode == Item.ItemCode) \
-                .with_entities(MenuOrderRM.Id, MenuOrderRM.FGGuid, MenuOrderRM.ItemCode,
-                               Item.ItemName, MenuOrderRM.PurUnit,MenuOrderRM.BOMUnit,
-                               MenuOrderRM.BOMQty,MenuOrderRM.ItemPrice, MenuOrderRM.RequiredQty,
-                               MenuOrderRM.PurBOMConversion, MenuOrderRM.PurchasePolicy)
-            rms = pd.read_sql(rms.statement,self.getBind())
+        # 新增
+        if df.empty:
+            if dfmeals.empty:
+                Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))
 
-            df.loc[df['FGGuid'] != '', 'RMs'] = df.apply(lambda x: getdict(rms[rms['FGGuid'] == x['FGGuid']]), axis=1)
+            return getdict(_datecols(dfmeals).drop(['StartDate', 'EndDate'], axis=1)\
+                .sort_values(by=['LineNum'])\
+                .rename(columns={'SOItemName': 'ItemName', 'SOItemDesc': 'ItemDesc','guid':'OrderLineGuid'}))
+
+        df = merge(dfmeals, df, how='left', left_on='guid', right_on='OrderLineGuid')
+        df.drop(['OrderLineGuid'],axis=1, inplace=True)
+        df.rename(columns={'guid':'OrderLineGuid'},inplace=True)
+
+        df = merge(df,ItemClass.list(2).rename(columns={'Sort':'ClassSort'}),
+                   how='left',left_on='CategoriesClassGuid',right_on='guid' )\
+            .rename(columns={'CategoriesClassGuid':'ClassGuid'})
+
+        DataFrameSetNan(df)
+
+        rms = MenuOrderRM.query.join(MenuOrderFG, MenuOrderRM.FGGuid == MenuOrderFG.FGGuid) \
+            .join(MenuOrderHead, MenuOrderFG.HeadGuid == MenuOrderHead.HeadGuid).filter(*filters) \
+            .join(Item, MenuOrderRM.ItemCode == Item.ItemCode) \
+            .with_entities(MenuOrderRM.Id, MenuOrderRM.FGGuid, MenuOrderRM.ItemCode,
+                           Item.ItemName, MenuOrderRM.PurUnit,MenuOrderRM.BOMUnit,
+                           MenuOrderRM.BOMQty,MenuOrderRM.ItemPrice, MenuOrderRM.RequiredQty,
+                           MenuOrderRM.PurBOMConversion, MenuOrderRM.PurchasePolicy)
+        rms = pd.read_sql(rms.statement,self.getBind())
+
+        df.loc[df['FGGuid'] != '', 'RMs'] = df.apply(lambda x: getdict(rms[rms['FGGuid'] == x['FGGuid']]), axis=1)
 
         # group, day0,day1...对齐
-        def _groupdf(li, dates, groupbyFields, aggcols):
+        def _groupdf(li, groupbyFields, aggcols):
             for k, v in dates.items():
                 li.loc[(li['RequireDate'] == v), k] = li.apply(lambda x: {c: x[c] for c in aggcols if x[c]}, axis=1)
 
@@ -103,46 +123,27 @@ class MenuOrderHead(erp):
                                                for k in dates.keys()})) \
                 .reset_index()
 
-        def _processdf(df, startDate, newMenu):
-            dates = self._dates(startDate)
-            cols = ['MealQty', 'MealPrice']
-            sortFields = ['SOItemName', 'SOItemDesc']
-
-            def _datecols(df,dates):
-                for k,v in dates.items():
-                    tmpf = (df['StartDate'] <= v) & (df['EndDate'] >= v)
-                    if k in list(df.columns): tmpf &= (df[k].isna())  # 无效的订单行
-
-                    df.loc[tmpf, k] = df.apply(lambda x: {c: '' for c in cols}, axis=1)
-                    df.loc[(df['StartDate'] > v) | (df['EndDate'] < v), k] = math.nan
-                return df
-
-            # MenuOrder没有数据
-            if newMenu:
-                df = _datecols(df,dates)
-                DataFrameSetNan(df)
-                return df.sort_values(by=sortFields)
-
-            groupbyFields = ['SOItemName', 'SOItemDesc', 'OrderLineGuid', 'StartDate', 'EndDate']
+        def _processdf(df):
+            groupbyFields = ['LineNum', 'SOItemName', 'SOItemDesc', 'OrderLineGuid',
+                             'StartDate', 'EndDate']
+            #groupbyFields = ['LineNum','SOItemName', 'SOItemDesc', 'OrderLineGuid', 'StartDate', 'EndDate']
             tdf1 = _groupdf(df.drop_duplicates(subset=(groupbyFields + ['RequireDate'])),
-                                 dates, groupbyFields, cols)
-            tdf1 = tdf1.append(df.loc[df['RequireDate'] == '', groupbyFields]).reset_index()
+                                 groupbyFields, mealcols)
+            tdf1 = tdf1.append(df.loc[df['RequireDate'] == '', groupbyFields]).reset_index(drop=True)
+            tdf1 = _datecols(tdf1)
 
-            tdf1 = _datecols(tdf1,dates)
-            cols = ['Id', 'FGGuid', 'ItemGuid', 'ItemCode', 'ItemName', 'ItemCost',
+            groupbyFields += ['ClassGuid', 'ClassName','ClassSort']
+            fgcols = ['Id', 'FGGuid', 'ItemGuid', 'ItemCode', 'ItemName', 'ItemCost',
                     'ItemColor', 'ItemUnit', 'RequiredQty', 'PurchasePolicy','RMs']
-            groupbyFields = ['SOItemName', 'SOItemDesc', 'OrderLineGuid', 'ClassGuid','ClassName', 'ClassSort']
-            tdf = _groupdf(df[df['Id'] > 0], dates, groupbyFields, cols)
+            tdf = _groupdf(df[df['Id'] > 0], groupbyFields, fgcols)
             tdf.fillna(value={k: '' for k in dates.keys()}, inplace=True)
 
             tdf1 = tdf.append(tdf1[set(tdf1.columns).intersection(set(tdf.columns))])
             DataFrameSetNan(tdf1)
-            sortFields.append('ClassSort')
 
-            return tdf1.sort_values(by=sortFields)[groupbyFields + list(dates.keys())]
+            return tdf1.sort_values(by=['LineNum','ClassSort'])[groupbyFields + list(dates.keys())]
 
-
-        tdf = _processdf(df, startDate, isNewMenu)\
+        tdf = _processdf(df).drop(['StartDate', 'EndDate'], axis=1)\
             .rename(columns={'SOItemName': 'ItemName', 'SOItemDesc': 'ItemDesc'})
 
         return getdict(tdf)

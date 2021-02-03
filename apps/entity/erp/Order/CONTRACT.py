@@ -41,7 +41,7 @@ class CONTRACT(erp):
         sql = DataControlConfig.list('MICReport')['Val1']
         sql = cls.query.filter(cls.CostCenterCode == costCenterCode,cls.ItemCode.in_(sql),
                                cls.StartDate <= endDate, cls.EndDate >= startDate)\
-            .with_entities(cls.guid, cls.ItemName.label('SOItemName'),
+            .with_entities(cls.guid, cls.LineNum, cls.ItemName.label('SOItemName'),
                            cls.Description.label('SOItemDesc'),
                            cls.StartDate, cls.EndDate)
         return pd.read_sql(sql.statement,cls.getBind())
