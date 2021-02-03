@@ -78,9 +78,14 @@ class MenuOrderHead(erp):
             if dfmeals.empty:
                 Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))
 
-            return getdict(_datecols(dfmeals).drop(['StartDate', 'EndDate'], axis=1)\
-                .sort_values(by=['LineNum'])\
-                .rename(columns={'SOItemName': 'ItemName', 'SOItemDesc': 'ItemDesc','guid':'OrderLineGuid'}))
+            for k,v in dates.items():
+                dfmeals.loc[(dfmeals['StartDate']<=v)&(dfmeals['EndDate']>=v),k] = \
+                    dfmeals.apply(lambda x:{c:'' for c in mealcols})
+            DataFrameSetNan(dfmeals)
+
+            return getdict(dfmeals.sort_values(by=['LineNum'])
+                           .drop(['StartDate', 'EndDate','LineNum'], axis=1)
+                           .rename(columns={'SOItemName': 'ItemName', 'SOItemDesc': 'ItemDesc','guid':'OrderLineGuid'}))
 
         df = merge(dfmeals, df, how='left', left_on='guid', right_on='OrderLineGuid')
         df.drop(['OrderLineGuid'],axis=1, inplace=True)
