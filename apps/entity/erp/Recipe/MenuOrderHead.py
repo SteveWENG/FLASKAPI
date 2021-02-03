@@ -72,16 +72,6 @@ class MenuOrderHead(erp):
 
         dates = self._dates(startDate)
         mealcols = ['MealQty', 'MealPrice']
-        def _datecols(df):
-            for k, v in dates.items():
-                tmpf = (df['StartDate'] <= v) & (df['EndDate'] >= v)
-                if k in list(df.columns): tmpf &= (df[k].isna())  # 无效的订单行
-
-                df.loc[tmpf, k] = df.apply(lambda x: {c: '' for c in mealcols}, axis=1)
-                df.loc[(df['StartDate'] > v) | (df['EndDate'] < v), k] = math.nan
-
-            DataFrameSetNan(df)
-            return df
 
         # 新增
         if df.empty:
@@ -96,6 +86,7 @@ class MenuOrderHead(erp):
         df.drop(['OrderLineGuid'],axis=1, inplace=True)
         df.rename(columns={'guid':'OrderLineGuid'},inplace=True)
 
+        # Product的分类
         df = merge(df,ItemClass.list(2).rename(columns={'Sort':'ClassSort'}),
                    how='left',left_on='CategoriesClassGuid',right_on='guid' )\
             .rename(columns={'CategoriesClassGuid':'ClassGuid'})
@@ -114,29 +105,34 @@ class MenuOrderHead(erp):
         df.loc[df['FGGuid'] != '', 'RMs'] = df.apply(lambda x: getdict(rms[rms['FGGuid'] == x['FGGuid']]), axis=1)
 
         # group, day0,day1...对齐
-        def _groupdf(li, groupbyFields, aggcols):
+        def _groupdf(li, groupbyFields, aggcols,keepEmpty=False):
             for k, v in dates.items():
                 li.loc[(li['RequireDate'] == v), k] = li.apply(lambda x: {c: x[c] for c in aggcols if x[c]}, axis=1)
 
+            def _g(g,dayX):
+                g1 = g[~g[dayX].isna()]
+                if keepEmpty and g1.empty:
+                    return [{c:'' for c in aggcols}]
+
+                return g1[dayX].reset_index(drop=True)
+
             return li.groupby(by=groupbyFields) \
-                .apply(lambda g: pd.DataFrame({k: g.loc[~g[k].isna(), k].reset_index(drop=True)
-                                               for k in dates.keys()})) \
+                .apply(lambda g: pd.DataFrame({k: _g(g,k) for k,v in dates.items()
+                                               if g.iloc[0]['StartDate']<=v and g.iloc[0]['EndDate']>=v})) \
                 .reset_index()
 
         def _processdf(df):
             groupbyFields = ['LineNum', 'SOItemName', 'SOItemDesc', 'OrderLineGuid',
                              'StartDate', 'EndDate']
-            #groupbyFields = ['LineNum','SOItemName', 'SOItemDesc', 'OrderLineGuid', 'StartDate', 'EndDate']
             tdf1 = _groupdf(df.drop_duplicates(subset=(groupbyFields + ['RequireDate'])),
-                                 groupbyFields, mealcols)
-            tdf1 = tdf1.append(df.loc[df['RequireDate'] == '', groupbyFields]).reset_index(drop=True)
-            tdf1 = _datecols(tdf1)
+                            groupbyFields, mealcols,True)
 
             groupbyFields += ['ClassGuid', 'ClassName','ClassSort']
             fgcols = ['Id', 'FGGuid', 'ItemGuid', 'ItemCode', 'ItemName', 'ItemCost',
                     'ItemColor', 'ItemUnit', 'RequiredQty', 'PurchasePolicy','RMs']
             tdf = _groupdf(df[df['Id'] > 0], groupbyFields, fgcols)
             tdf.fillna(value={k: '' for k in dates.keys()}, inplace=True)
+
 
             tdf1 = tdf.append(tdf1[set(tdf1.columns).intersection(set(tdf.columns))])
             DataFrameSetNan(tdf1)
