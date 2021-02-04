@@ -5,10 +5,11 @@ from functools import reduce
 import pandas as pd
 from flask import current_app
 from pandas import merge
-from sqlalchemy import func, and_
+from sqlalchemy import func, and_, or_
 from sqlalchemy.ext.hybrid import hybrid_property
 
 from ..Item.DivisionItem import DivisionItem
+from ..common.DataControlConfig import DataControlConfig
 from ... import SaveDB
 from ....utils.MyProcess import MyProcess
 from ....utils.functions import *
@@ -45,8 +46,8 @@ class Product(erp):
 
     @classmethod
     def list(cls,division, costCenterCode, date,fortype):
-
-        if not division and not costCenterCode:
+        fortype = getStr(fortype).lower()
+        if (not division and not costCenterCode) or (fortype=='menu' and not costCenterCode):
             Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
 
         if division:
@@ -62,8 +63,9 @@ class Product(erp):
                       cls.ItemName.label('ProductName'),cls.ShareQty,
                       ItemBOM.CostCenterCode,ItemBOM.ItemCode,
                       ItemBOM.OtherName,ItemBOM.Qty,ItemBOM.PurchasePolicy,cls.CreateUser,cls.CreateTime]
+
             if costCenterCode:
-                filters.append(func.coalesce(ItemBOM.CostCenterCode,costCenterCode)==costCenterCode)
+               filters.append(func.coalesce(ItemBOM.CostCenterCode,costCenterCode)==costCenterCode)
             # BOM
             sql = cls.query.filter(*filters).join(ItemBOM,cls.Guid==ItemBOM.ProductGuid)
             if fortype == 'recipe':
@@ -90,6 +92,14 @@ class Product(erp):
 
             DataFrameSetNan(product)
             if fortype == 'recipe': return product
+
+            siteproduct = product[product['CostCenterCode']==costCenterCode]
+            if getStr(DataControlConfig.getMenuRecipeBy()).lower() == 'sitedrecipes': # 近取Site的Recipe
+                if siteproduct.empty:
+                    Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
+                product = siteproduct
+            elif not siteproduct.empty: # 有site的recipe则取site的，否则取division的
+                product = product[~product['ProductGuid'].isin(set(siteproduct['ProductGuid']))].append(siteproduct)
 
             df = merge(product, pricelist, how='outer', left_on='ItemCode', right_on='ItemCode')
             DataFrameSetNan(df)

@@ -37,6 +37,8 @@ class DataControlConfig(erp):
 
         filters = [func.coalesce(cls.StartDate,'2000-1-1')<=date,
                    func.coalesce(cls.EndDate,'2222-12-31')>=date]
+        if kwargs.get('guid'):
+            filters.append(cls.Guid==kwargs['guid'])
 
         if kwargs.get('types'):
             types = kwargs['types']
@@ -108,3 +110,12 @@ class DataControlConfig(erp):
         ret['columns'] = getdict(qry)
 
         return ret
+
+    @classmethod
+    def getMenuRecipeBy(cls):
+        df = cls.list(guid='717F5904-CD13-49FA-816D-A8F6334AB10C')
+        if df.empty: return None
+
+        DataFrameSetNan(df)
+        if df.iloc[0]['Val1']: return df.iloc[0]['Val1']
+        return None
