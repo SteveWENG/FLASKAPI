@@ -40,7 +40,7 @@ class OrderHead(erp):
 
     def getConfigs(self, costCenterCode, type, subtype, field):
         if '_config' not in dir(self) or self._config.empty:
-            self._config =  DataControlConfig.list(['PO', 'FoodPO'])
+            self._config =  DataControlConfig.list(types=['PO', 'FoodPO'])
             if self._config.empty: return ''
             DataFrameSetNan(self._config)
         if '_division' not in dir(self) or not self._division:

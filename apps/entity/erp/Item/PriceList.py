@@ -62,7 +62,7 @@ class PriceList(erp):
 
     @classmethod
     def controls(cls,division,costCenterCode,date, type):
-        dcc = DataControlConfig.list('ControlSupplierBySite',date) \
+        dcc = DataControlConfig.list(types='ControlSupplierBySite',date=date) \
             .drop(['Id', 'Guid', 'Type', 'StartDate', 'EndDate'], axis=1)
         dcc.rename(columns={'Val1': 'Division', 'Val2': 'CostCenterCode',
                             'Val3': 'ClassIndex', 'Val4': 'ClassCode',

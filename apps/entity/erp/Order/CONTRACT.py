@@ -38,7 +38,7 @@ class CONTRACT(erp):
         if not costCenterCode or not startDate or not endDate:
             Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))
 
-        sql = DataControlConfig.list('MICReport')['Val1']
+        sql = DataControlConfig.list(types='MICReport')['Val1']
         sql = cls.query.filter(cls.CostCenterCode == costCenterCode,cls.ItemCode.in_(sql),
                                cls.StartDate <= endDate, cls.EndDate >= startDate)\
             .with_entities(cls.guid, cls.LineNum, cls.ItemName.label('SOItemName'),
