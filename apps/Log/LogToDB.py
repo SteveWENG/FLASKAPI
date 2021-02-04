@@ -39,7 +39,9 @@ class LogToDB(Process):
     def _save(self,dic):
         logger = dic['LogRecord'].__dict__['name'] + ' ' + dic['LogRecord'].__dict__['module']
         level = dic['LogRecord'].__dict__['levelname']
-        if not self._submitdata and level == 'INFO': return
+        if level == 'INFO' and not self._submitdata \
+                and dic['LogRecord'].__dict__['message'] in ['Started','Completed']:
+            return
 
         def checkSQL_Vals(vals):
             if not self._data or not vals: return False

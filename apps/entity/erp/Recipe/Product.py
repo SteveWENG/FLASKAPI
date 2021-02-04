@@ -60,22 +60,17 @@ class Product(erp):
                        ~cls.ItemBOM.any(ItemBOM.ItemCode.like('[AB]%'))]
             fields = [cls.CategoriesClassGuid,cls.CookwayClassGuid,cls.SeasonClassGuid,cls.ItemShapeGuid,
                       cls.Guid.label('ProductGuid'),cls.ItemCode.label('ProductCode'),
-                      cls.ItemName.label('ProductName'),cls.ShareQty,
-                      ItemBOM.CostCenterCode,ItemBOM.ItemCode,
-                      ItemBOM.OtherName,ItemBOM.Qty,ItemBOM.PurchasePolicy,cls.CreateUser,cls.CreateTime]
+                      cls.ItemName.label('ProductName'),cls.ShareQty,cls.CreateUser,cls.CreateTime]
+            fields += ItemBOM.listCols(fortype)
 
             if costCenterCode:
                filters.append(func.coalesce(ItemBOM.CostCenterCode,costCenterCode)==costCenterCode)
             # BOM
             sql = cls.query.filter(*filters).join(ItemBOM,cls.Guid==ItemBOM.ProductGuid)
-            if fortype == 'recipe':
-                sql = sql.outerjoin(DivisionItem,and_(ItemBOM.ItemCode==DivisionItem.ItemCode,
-                                                    DivisionItem.Division==division))
-                fields += [ItemBOM.Id,DivisionItem.PurPrice.label('Price'),DivisionItem.BOMUnit.label('BOMUnit'),
-                           DivisionItem.PurBOMConversion.label('PurBOMConversion')]
             sql = sql.with_entities(*fields)
             product = MyProcess(pd.read_sql,sql.statement,bind)
 
+            pricelist = None
             if fortype == 'menu':
                 pricelist = MyProcess(PriceList.list, division, costCenterCode, date, 'Food', False)
                 pricelist = pricelist.get()
@@ -91,7 +86,11 @@ class Product(erp):
                 Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
 
             DataFrameSetNan(product)
-            if fortype == 'recipe': return product
+            product.loc[product['CostCenterCode']!=costCenterCode,'Id'] = ''
+            if fortype == 'recipe':
+                product.rename(columns={'ItemCost':'Price','ConversionRate':'PurBOMConversion','UOM':'BOMUnit'}
+                               ,inplace=True)
+                return product
 
             siteproduct = product[product['CostCenterCode']==costCenterCode]
             if getStr(DataControlConfig.getMenuRecipeBy()).lower() == 'sitedrecipes': # 近取Site的Recipe
