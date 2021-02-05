@@ -122,7 +122,7 @@ class Product(erp):
                 .apply(lambda x: pd.Series({'ItemCost': (x['PurPrice']*x['Qty']/x['PurBOMConversion']).sum(),
                                             'ItemBOM': reduce(lambda x1, x2: x1 + x2,
                                                                [[{k: v for k, v in l.items()
-                                                                  if k not in groupbyFields and v}]
+                                                                  if k not in (groupbyFields+['ClassCode','ClassName']) and v}]
                                                                 for l in x.sort_values(by=['ItemCode'])
                                                                .to_dict('records')])}))\
                 .reset_index().rename(columns={'ProductGuid':'ItemGuid',
@@ -153,7 +153,6 @@ class Product(erp):
 
     def save(self):
         # New or modify
-
         if not self.Id:
             self.Id = None
             self.Guid = getGUID()
