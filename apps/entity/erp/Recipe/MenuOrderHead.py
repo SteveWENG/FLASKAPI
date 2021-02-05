@@ -103,11 +103,13 @@ class MenuOrderHead(erp):
             .join(Item, MenuOrderRM.ItemCode == Item.ItemCode) \
             .with_entities(MenuOrderRM.Id, MenuOrderRM.FGGuid, MenuOrderRM.ItemCode,
                            Item.ItemName, MenuOrderRM.PurUnit,MenuOrderRM.BOMUnit,
-                           MenuOrderRM.BOMQty,MenuOrderRM.ItemPrice, MenuOrderRM.RequiredQty,
+                           MenuOrderRM.BOMQty,MenuOrderRM.PurPrice, MenuOrderRM.RequiredQty,
                            MenuOrderRM.PurBOMConversion, MenuOrderRM.PurchasePolicy)
         rms = pd.read_sql(rms.statement,self.getBind())
 
-        df.loc[df['FGGuid'] != '', 'RMs'] = df.apply(lambda x: getdict(rms[rms['FGGuid'] == x['FGGuid']]), axis=1)
+        df.loc[df['FGGuid'] != '', 'RMs'] = df.apply(lambda x:
+                                                     getdict(rms[rms['FGGuid'] == x['FGGuid']]
+                                                             .drop(['FGGuid'],axis=1)), axis=1)
 
         # group, day0,day1...对齐
         def _groupdf(li, groupbyFields, aggcols,keepEmpty=False):

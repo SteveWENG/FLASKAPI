@@ -117,8 +117,9 @@ class Product(erp):
 
             groupbyFields = ['CategoriesClassGuid', 'CookwayClassGuid','SeasonClassGuid', 'ItemShapeGuid', 'ProductGuid',
                              'ProductCode', 'ProductName', 'ShareQty', 'CreateUser', 'CreateTime', 'ItemType']
+
             product = product.groupby(by=list(set(groupbyFields).intersection(set(product.columns))))\
-                .apply(lambda x: pd.Series({'ItemCost': (x['Price']*x['Qty']/x['PurBOMConversion']).sum(),
+                .apply(lambda x: pd.Series({'ItemCost': (x['PurPrice']*x['Qty']/x['PurBOMConversion']).sum(),
                                             'ItemBOM': reduce(lambda x1, x2: x1 + x2,
                                                                [[{k: v for k, v in l.items()
                                                                   if k not in groupbyFields and v}]
@@ -141,8 +142,8 @@ class Product(erp):
 
         if 'ItemType' in df.columns:
             rms = df.loc[df['ItemType'] == 'RM',
-                         ['ClassCode', 'ClassName', 'ItemCode', 'ItemName', 'PurUnit', 'Price', 'ItemType']] \
-                .rename(columns={'PurUnit': 'ItemUnit', 'Price': 'ItemCost',
+                         ['ClassCode', 'ClassName', 'ItemCode', 'ItemName', 'PurUnit', 'PurPrice', 'ItemType']] \
+                .rename(columns={'PurUnit': 'ItemUnit', 'PurPrice': 'ItemCost',
                                  'ClassCode': 'CategoriesClassGuid', 'ClassName': 'CategoriesClassName'})
             product = product.append(rms)
 

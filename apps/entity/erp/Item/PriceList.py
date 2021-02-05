@@ -106,7 +106,7 @@ class PriceList(erp):
 
         def _GroupSuppliers(li):
             def _apply(g):
-                dic = {'Price': g['Price'].min()}
+                dic = {'PurPrice': g['Price'].min()}
                 if needSuppliers:
                     dic['suppliers'] = [reduce(lambda x1,x2: x1+x2,
                                                [[{k:v for k,v in l.items()
