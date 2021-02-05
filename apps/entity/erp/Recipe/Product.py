@@ -6,6 +6,7 @@ import pandas as pd
 from pandas import merge
 from sqlalchemy import func
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.sql.functions import current_user
 
 from ..common.DataControlConfig import DataControlConfig
 from ... import SaveDB
@@ -149,6 +150,7 @@ class Product(erp):
 
     def save(self):
         # New or modify
+
         if not self.Id:
             self.Id = None
             self.Guid = getGUID()

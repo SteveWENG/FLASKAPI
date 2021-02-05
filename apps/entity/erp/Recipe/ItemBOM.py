@@ -20,7 +20,7 @@ class ItemBOM(erp):
     CreatedUser = db.Column()
     CreatedTime = db.Column(server_default='getdate()')
     ChangedUser = db.Column()
-    ChangedTime = db.Column(server_default='getdate()', onupdate=datetime.datetime.now)
+    ChangedTime = db.Column(default=datetime.datetime.now, onupdate=datetime.datetime.now)
     DeleteTime = db.Column()
 
     @classmethod

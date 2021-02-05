@@ -52,13 +52,15 @@ class BaseModel(db.Model):
                 v = getDateTime(v)
             '''
 
-            setattr(self, tmpkey, self._wrap(prop,v))
+            setattr(self, tmpkey, self.__wrap(prop,v))
 
-        # User
-        for user in [user for user in fields if user.lower().endswith('user') and not user.startswith('_')]:
-            setattr(self,user,g.get('User'))
+        # CreatedUser & ChangedUser
+        for user in [user for user in fields if user.lower().endswith('user') and user.lower().startswith('c')]:
+            if user.lower().startswith('change') or \
+                    (getNumber(self.Id)==0 and user.lower().startswith('create')):
+                setattr(self,user,g.get('User'))
 
-    def _wrap(self,prop,value,HId=None):
+    def __wrap(self,prop,value,HId=None):
         prop = prop.prop
         if isinstance(prop,properties.RelationshipProperty):
             if isinstance(value, (tuple, list, set, frozenset)):
@@ -74,7 +76,10 @@ class BaseModel(db.Model):
 
             return self(value) if isinstance(value, dict) else value
 
-    def __wrap(self, value):
+        if isinstance(value, (tuple, list, set, frozenset)):
+            return type(value)([self.__wrap(v) for v in value])
+
+    def __wrap_del(self, value):
         if isinstance(value, (tuple, list, set, frozenset)):
             return type(value)([self._wrap(v) for v in value])
         
