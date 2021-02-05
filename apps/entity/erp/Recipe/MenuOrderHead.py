@@ -3,7 +3,7 @@
 import pandas as pd
 from flask import g
 from pandas import merge
-from sqlalchemy import func
+from sqlalchemy import func, Date
 import datetime
 
 from .ItemClass import ItemClass
@@ -26,7 +26,7 @@ class MenuOrderHead(erp):
     OrderLineGuid = db.Column()
     ItemName = db.Column()
     ItemDesc = db.Column()
-    RequireDate = db.Column()
+    RequireDate = db.Column(Date) # DataFrame中该列为日期
     MealQty = db.Column()
     MealPrice = db.Column()
     CreatedUser = db.Column(default=CurrentUser)
