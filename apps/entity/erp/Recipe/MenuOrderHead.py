@@ -135,7 +135,7 @@ class MenuOrderHead(erp):
             tdf1 = _groupdf(df[df['Id'] > 0], groupbyFields, fgcols)
             if not tdf1.empty:
                 tdf1.fillna(value={k: '' for k in dates.keys()}, inplace=True)
-                tdf = tdf.append(tdf1[set(tdf1.columns).intersection(set(tdf.columns))])
+                tdf = tdf1.append(tdf[set(tdf.columns).intersection(set(tdf1.columns))])
 
             DataFrameSetNan(tdf)
             return tdf.sort_values(by=list(set(['LineNum','ClassSort']).intersection(set(tdf.columns))))
