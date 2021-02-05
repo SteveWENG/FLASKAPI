@@ -162,12 +162,12 @@ class MenuOrderHead(erp):
         for l in data['orders']:
             date = [[k,v] for k,v in dates.items() if k in l.keys()]
             if not date: continue
-            if len(date) > 1: Error('应该只有一条')
+            if len(date) > 1:
+                Error('一个OrderLineGuid中应该只有一个日期')
 
             tmph = MenuOrderHead(l)
             tmph.CostCenterCode = costCenterCode
             tmph.RequireDate = date[0][1]
-            tmph.CreatedUser = g.get('User')
 
             head = [h for h in menuorderheads
                     if h.OrderLineGuid==tmph.OrderLineGuid
@@ -184,13 +184,11 @@ class MenuOrderHead(erp):
                                             [{x:y for x,y in l.items() if x.lower() != 'fgguid'} for l in v]
                                      for k,v  in fg.items() if k.lower() != 'headguid'})
 
-                tmpfg.CreatedUser = g.get('User')
                 if not tmph.Id or not tmpfg.Id:
                     tmpfg.Id = None
                     tmpfg.FGGuid = getGUID()
                 for rm in tmpfg.RMs:
                     if not tmpfg.Id:  rm.Id = None
-                    rm.CreatedUser = g.get('User')
 
                 '''
                 if fg.get('RMs'):
