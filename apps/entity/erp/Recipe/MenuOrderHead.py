@@ -3,7 +3,8 @@
 import pandas as pd
 from flask import g
 from pandas import merge
-from sqlalchemy import Date, func, and_
+from sqlalchemy import func
+import datetime
 
 from .ItemClass import ItemClass
 from .MenuOrderRM import MenuOrderRM
@@ -14,7 +15,7 @@ from ..Order.CONTRACT import CONTRACT
 from ..common.LangMast import lang
 from ... import SaveDB
 from ....utils.functions import *
-from ...erp import erp, db
+from ...erp import erp, db, CurrentUser
 
 
 class MenuOrderHead(erp):
@@ -25,10 +26,12 @@ class MenuOrderHead(erp):
     OrderLineGuid = db.Column()
     ItemName = db.Column()
     ItemDesc = db.Column()
-    RequireDate = db.Column(Date)
+    RequireDate = db.Column()
     MealQty = db.Column()
     MealPrice = db.Column()
     CreatedUser = db.Column()
+    ChangedUser = db.Column(default=CurrentUser, onupdate=CurrentUser)
+    ChangedTime = db.Column(default=datetime.datetime.now, onupdate=datetime.datetime.now)
 
     FGs = db.relationship('MenuOrderFG', primaryjoin='MenuOrderHead.HeadGuid == foreign(MenuOrderFG.HeadGuid)',
                           lazy='joined')

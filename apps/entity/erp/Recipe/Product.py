@@ -16,7 +16,7 @@ from .ItemClass import ItemClass
 from ..Item.PriceList import PriceList
 from ..common.CostCenter import CostCenter
 from ..common.LangMast import lang
-from ...erp import erp, db
+from ...erp import erp, db,CurrentUser
 from .ItemBOM import ItemBOM
 
 class Product(erp):
@@ -33,8 +33,10 @@ class Product(erp):
     SeasonClassGuid = db.Column()
     ItemShapeGuid = db.Column()
     Status = db.Column()
-    CreateUser = db.Column()
+    CreateUser = db.Column(default=CurrentUser)
     CreateTime = db.Column(server_default='getdate()')
+    ChangedUser = db.Column(default=CurrentUser, onupdate=CurrentUser)
+    ChangedTime = db.Column(default=datetime.datetime.now, onupdate=datetime.datetime.now)
 
     ItemBOM = db.relationship('ItemBOM', primaryjoin='Product.Guid == foreign(ItemBOM.ProductGuid)',
                           lazy='joined')

@@ -53,12 +53,13 @@ class BaseModel(db.Model):
             '''
 
             setattr(self, tmpkey, self.__wrap(prop,v))
-
+        '''
         # CreatedUser & ChangedUser
         for user in [user for user in fields if user.lower().endswith('user') and user.lower().startswith('c')]:
             if user.lower().startswith('change') or \
                     (getNumber(self.Id)==0 and user.lower().startswith('create')):
                 setattr(self,user,g.get('User'))
+        '''
 
     def __wrap(self,prop,value,HId=None):
         prop = prop.prop

@@ -2,7 +2,7 @@
 
 import datetime
 
-from ...erp import erp, db
+from ...erp import erp, db, CurrentUser
 
 class ItemBOM(erp):
     __tablename__ = 'tblItemBOM'
@@ -17,9 +17,9 @@ class ItemBOM(erp):
     Qty = db.Column()
     Type = db.Column()
     PurchasePolicy = db.Column()
-    CreatedUser = db.Column()
+    CreatedUser = db.Column(default=CurrentUser)
     CreatedTime = db.Column(server_default='getdate()')
-    ChangedUser = db.Column()
+    ChangedUser = db.Column(default=CurrentUser, onupdate=CurrentUser)
     ChangedTime = db.Column(default=datetime.datetime.now, onupdate=datetime.datetime.now)
     DeleteTime = db.Column()
 

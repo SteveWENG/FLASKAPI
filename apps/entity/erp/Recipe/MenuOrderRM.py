@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
+import datetime
 
-from ...erp import erp, db
+from ...erp import erp, db, CurrentUser
+
 
 class MenuOrderRM(erp):
     __tablename__ = 'tblMenuOrderRMs'
@@ -14,4 +16,6 @@ class MenuOrderRM(erp):
     PurUnit = db.Column()
     BOMQty = db.Column()
     BOMUnit = db.Column()
-    CreatedUser = db.Column()
+    CreatedUser = db.Column(default=CurrentUser)
+    ChangedUser = db.Column(default=CurrentUser, onupdate=CurrentUser)
+    ChangedTime = db.Column(default=datetime.datetime.now, onupdate=datetime.datetime.now)
