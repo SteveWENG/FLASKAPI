@@ -54,6 +54,10 @@ class BaseModel(db.Model):
 
             setattr(self, tmpkey, self._wrap(prop,v))
 
+        # User
+        for user in [user for user in fields if user.lower().endswith('user') and not user.startswith('_')]:
+            setattr(self,user,g.get('User'))
+
     def _wrap(self,prop,value,HId=None):
         prop = prop.prop
         if isinstance(prop,properties.RelationshipProperty):

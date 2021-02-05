@@ -50,11 +50,7 @@ class MenuOrderHead(erp):
 
     def list(self,costCenterCode,startDate):
         sql,filters,endDate = self._list(costCenterCode,startDate)
-        '''
-        .join(CONTRACT, and_(MenuOrderHead.OrderLineGuid == CONTRACT.guid,
-                             MenuOrderHead.RequireDate >= CONTRACT.StartDate,
-                             MenuOrderHead.RequireDate <= CONTRACT.EndDate)) \
-        '''
+
         sql = sql.outerjoin(MenuOrderFG,MenuOrderHead.HeadGuid==MenuOrderFG.HeadGuid)\
             .outerjoin(Product,MenuOrderFG.ItemGuid==Product.Guid) \
             .outerjoin(Item, MenuOrderFG.ItemCode == Item.ItemCode) \
@@ -111,6 +107,7 @@ class MenuOrderHead(erp):
 
         # group, day0,day1...对齐
         def _groupdf(li, groupbyFields, aggcols,keepEmpty=False):
+            if li.empty: return li
             for k, v in dates.items():
                 li.loc[(li['RequireDate'] == v), k] = li.apply(lambda x: {c: x[c] for c in aggcols if x[c]}, axis=1)
 
@@ -129,20 +126,20 @@ class MenuOrderHead(erp):
         def _processdf(df):
             groupbyFields = ['LineNum', 'SOItemName', 'SOItemDesc', 'OrderLineGuid',
                              'StartDate', 'EndDate']
-            tdf1 = _groupdf(df.drop_duplicates(subset=(groupbyFields + ['RequireDate'])),
+            tdf = _groupdf(df.drop_duplicates(subset=(groupbyFields + ['RequireDate'])),
                             groupbyFields, mealcols,True)
 
             groupbyFields += ['ClassGuid', 'ClassName','ClassSort']
             fgcols = ['Id', 'FGGuid', 'ItemGuid', 'ItemCode', 'ItemName', 'ItemCost',
                     'ItemColor', 'ItemUnit', 'RequiredQty', 'PurchasePolicy','RMs']
-            tdf = _groupdf(df[df['Id'] > 0], groupbyFields, fgcols)
-            tdf.fillna(value={k: '' for k in dates.keys()}, inplace=True)
+            tdf1 = _groupdf(df[df['Id'] > 0], groupbyFields, fgcols)
+            if not tdf1.empty:
+                tdf1.fillna(value={k: '' for k in dates.keys()}, inplace=True)
+                tdf = tdf.append(tdf1[set(tdf1.columns).intersection(set(tdf.columns))])
 
-
-            tdf1 = tdf.append(tdf1[set(tdf1.columns).intersection(set(tdf.columns))])
-            DataFrameSetNan(tdf1)
-
-            return tdf1.sort_values(by=['LineNum','ClassSort'])[groupbyFields + list(dates.keys())]
+            DataFrameSetNan(tdf)
+            return tdf.sort_values(by=list(set(['LineNum','ClassSort']).intersection(set(tdf.columns))))
+            [list(set(groupbyFields).intersection(set(tdf.columns))) + list(dates.keys())]
 
         tdf = _processdf(df).drop(['StartDate', 'EndDate'], axis=1)\
             .rename(columns={'SOItemName': 'ItemName', 'SOItemDesc': 'ItemDesc'})

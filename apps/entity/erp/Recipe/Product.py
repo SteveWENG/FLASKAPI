@@ -1,14 +1,12 @@
 # -*- coding: utf-8 -*-
-import threading
+
 from functools import reduce
 
 import pandas as pd
-from flask import current_app
 from pandas import merge
-from sqlalchemy import func, and_, or_
+from sqlalchemy import func
 from sqlalchemy.ext.hybrid import hybrid_property
 
-from ..Item.DivisionItem import DivisionItem
 from ..common.DataControlConfig import DataControlConfig
 from ... import SaveDB
 from ....utils.MyProcess import MyProcess
@@ -88,8 +86,8 @@ class Product(erp):
             DataFrameSetNan(product)
             product.loc[product['CostCenterCode']!=costCenterCode,'Id'] = ''
             if fortype == 'recipe':
-                product.rename(columns={'ItemCost':'Price','ConversionRate':'PurBOMConversion','UOM':'BOMUnit'}
-                               ,inplace=True)
+                product.rename(columns={'ItemCost':'Price','ConversionRate':'PurBOMConversion','UOM':'BOMUnit'},
+                               inplace=True)
                 return product
 
             siteproduct = product[product['CostCenterCode']==costCenterCode]
@@ -156,6 +154,7 @@ class Product(erp):
             self.Guid = getGUID()
             for bom in self.ItemBOM:
                 bom.Id = None
+
         with SaveDB() as session:
             session.merge(self)
             return lang('56CF8259-D808-4796-A077-11124C523F6F')

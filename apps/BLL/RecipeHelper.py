@@ -15,10 +15,17 @@ class RecipeHelper:
         if data.get('ItemGuid'):
             data['Guid'] = data.pop('ItemGuid')
         if data.get('ItemBOM'):
-            def _rename(bom):
+            def _process(bom):
                 col = {'Price':'ItemCost','BOMUnit':'UOM',}
                 for k,v in col.items():
                     if bom.get(k): bom[v] = bom.pop(k)
+
+                # 存成Site的BOM
+                if not data.get('costCenterCode') or bom.get('CostCenterCode'):
+                    return bom
+                del bom['Id']
+                bom['CostCenterCode'] = data['costCenterCode']
                 return bom
-            data['ItemBOM'] = [_rename(bom) for bom in data['ItemBOM']]
+            data['ItemBOM'] = [_process(bom) for bom in data['ItemBOM']]
+
         return Product(data).save()

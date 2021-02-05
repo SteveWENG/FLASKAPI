@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+import datetime
+
 from ...erp import erp, db
 
 class ItemBOM(erp):
@@ -15,7 +17,10 @@ class ItemBOM(erp):
     Qty = db.Column()
     Type = db.Column()
     PurchasePolicy = db.Column()
-    CreateUser = db.Column()
+    CreatedUser = db.Column()
+    CreatedTime = db.Column(server_default='getdate()')
+    ChangedUser = db.Column()
+    ChangedTime = db.Column(server_default='getdate()', onupdate=datetime.datetime.now)
     DeleteTime = db.Column()
 
     @classmethod
