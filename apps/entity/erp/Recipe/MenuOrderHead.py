@@ -29,7 +29,7 @@ class MenuOrderHead(erp):
     RequireDate = db.Column()
     MealQty = db.Column()
     MealPrice = db.Column()
-    CreatedUser = db.Column()
+    CreatedUser = db.Column(default=CurrentUser)
     ChangedUser = db.Column(default=CurrentUser, onupdate=CurrentUser)
     ChangedTime = db.Column(default=datetime.datetime.now, onupdate=datetime.datetime.now)
 
@@ -51,6 +51,7 @@ class MenuOrderHead(erp):
                    MenuOrderHead.RequireDate <= endDate]
         return MenuOrderHead.query.filter(*filters),filters,endDate
 
+    # startDate：一周的周一
     def list(self,costCenterCode,startDate):
         sql,filters,endDate = self._list(costCenterCode,startDate)
 
@@ -149,7 +150,7 @@ class MenuOrderHead(erp):
 
         return getdict(tdf)
 
-    def save(self,data):
+    def save_bak(self,data):
         costCenterCode = data['costCenterCode']
         startDate = data['date']
         menuorderheads = self._list(costCenterCode,startDate)[0]\
@@ -207,4 +208,61 @@ class MenuOrderHead(erp):
             for tmph in tmpg:
                 session.merge(tmph)
             return lang('56CF8259-D808-4796-A077-11124C523F6F')
-        x = 1
+
+    def save(self,data):
+        costCenterCode = data['costCenterCode']
+        startDate = data['date']
+        menuorderheads = self._list(costCenterCode,startDate)[0]\
+            .with_entities(MenuOrderHead.Id,MenuOrderHead.HeadGuid,
+                           MenuOrderHead.OrderLineGuid,MenuOrderHead.RequireDate).all()
+
+        dates = self._dates(getDateTime(startDate))
+        tmpg = []
+
+        for l in data['orders']:
+            tdates = [{k:v} for k,v in dates.items() if k in l.keys()]
+            if not tdates: continue
+            # if len(date) > 1: Error('一个OrderLineGuid中应该只有一个日期')
+            for dic in tdates:
+                tmph = MenuOrderHead(l)
+                tmph.CostCenterCode = costCenterCode
+                tmph.RequireDate = list(dic.values())[0]
+
+                head = [h for h in menuorderheads
+                        if h.OrderLineGuid==tmph.OrderLineGuid
+                        and h.RequireDate==tmph.RequireDate]
+
+                if head:
+                    tmph.Id = head[0].Id
+                    tmph.HeadGuid = head[0].HeadGuid
+                else:
+                    tmph.HeadGuid = getGUID()
+
+                for fg in l[list(dic.keys())[0]]:#l[date[0][0]]:
+                    tmpfg = MenuOrderFG({k:v if k.lower() != 'rms' else
+                                                [{x:y for x,y in l.items() if x.lower() != 'fgguid'} for l in v]
+                                         for k,v  in fg.items() if k.lower() != 'headguid'})
+
+                    if not tmph.Id or not tmpfg.Id:
+                        tmpfg.Id = None
+                        tmpfg.FGGuid = getGUID()
+                    for rm in tmpfg.RMs:
+                        if not tmpfg.Id:  rm.Id = None
+
+                    '''
+                    if fg.get('RMs'):
+                        tmpfg.RMs = []
+                        for rm in fg['RMs']:
+                            tmprm = MenuOrderRM(rm)
+                            if not tmpfg.Id or not tmprm.Id:
+                                tmprm.Id = None
+    
+                            tmpfg.RMs.append(tmprm)
+                    '''
+                    tmph.FGs.append(tmpfg)
+
+                tmpg.append(tmph)
+        with SaveDB() as session:
+            for tmph in tmpg:
+                session.merge(tmph)
+            return lang('56CF8259-D808-4796-A077-11124C523F6F')
