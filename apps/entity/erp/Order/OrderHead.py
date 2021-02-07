@@ -266,7 +266,8 @@ class OrderHead(erp):
                         else '9CE7707A-A7B6-49C7-A8ED-A9A505B286A1')
 
     @classmethod
-    def list(cls,headGuid, costCenterCode, date, supplierCode, orderType, appStatus):
+    def listToStock(cls,headGuid, costCenterCode, date, supplierCode, orderType):
+        appStatus = cls.OrderStatus(orderType,'ToBeReceived')
         filters = [cls.HeadGuid==headGuid, cls.CostCenterCode == costCenterCode,
                    cls.AppStatus==appStatus,cls.OrderDate == date, cls.Active==True,
                     OrderLine.SupplierCode == supplierCode, OrderLine.RemainQty != 0,
@@ -290,3 +291,24 @@ class OrderHead(erp):
 
         # tmp = [{k:getVal(getattr(l,k)) for k in l.keys() if getattr(l,k)} for l in qry]
         return tmpdf    #.to_dict('records')
+
+    # step: SubmittedOrder, ToBeReceived
+    @classmethod
+    def OrderStatus(cls, orderType, step):
+        step = step.lower()
+        ret = ''
+        if step == 'tobereceived':
+            ret = 'submitted'
+
+        df = DataControlConfig.list(types='OrderTypeToBeApproved')
+        if df.empty: return ret
+
+        df = df[df['Val1'].str.lower()==orderType.lower()]
+        if df.empty: return ret
+
+        if step == 'submittedorder':
+            return {'Saved':'new','Submitted':df.iloc[0]['Val2']}
+        elif step == 'tobereceived':
+            return df.iloc[0]['Val3']
+
+        return ret

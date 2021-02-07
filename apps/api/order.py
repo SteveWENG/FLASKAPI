@@ -19,10 +19,10 @@ def updatepo():
 def save():
     return webapi(lambda dic: OrderHelper.save(dic))
 
-@bp.route('/menuorder',methods=['POST'])
-def MenuOrder():
-    return webapi(lambda dic: OrderHelper.MenuOrder(dic))
+@bp.route('/submittedorderstatus',methods=['POST'])
+def SubmittedOrderStatus():
+    return webapi(lambda dic: OrderHelper.OrderStatus({**dic,'step':'SubmittedOrder'}))
 
-@bp.route('/savemenuorder',methods=['POST'])
-def SaveMenuOrder():
-    return webapi(lambda dic: OrderHelper.SaveMenuOrder(dic))
+@bp.route('/tobereceivedorderstatus',methods=['POST'])
+def ToBeReceivedOrderStatus():
+    return webapi(lambda dic: OrderHelper.OrderStatus({**dic,'step':'ToBeReceived'}))

@@ -21,10 +21,5 @@ class OrderHelper:
         return OrderHead(data).save(data)
 
     @staticmethod
-    def MenuOrder(data):
-        return MenuOrderHead().list(data.get('costCenterCode', ''),
-                                    data.get('startDate', ''),data.get('endDate', ''))
-
-    @staticmethod
-    def SaveMenuOrder(data):
-        return MenuOrderHead().save(data)
+    def OrderStatus(data):
+        return OrderHead.OrderStatus(data.get('orderType'),data.get('step'))
