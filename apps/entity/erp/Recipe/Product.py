@@ -38,7 +38,7 @@ class Product(erp):
     ChangedUser = db.Column(default=CurrentUser, onupdate=CurrentUser)
     ChangedTime = db.Column(default=datetime.datetime.now, onupdate=datetime.datetime.now)
 
-    ItemBOM = db.relationship('ItemBOM', primaryjoin='Product.Guid == foreign(ItemBOM.ProductGuid)',
+    ItemBOM = db.relationship('ItemBOM', primaryjoin='Product.Guid==foreign(ItemBOM.ProductGuid)',
                           lazy='joined')
 
     @hybrid_property

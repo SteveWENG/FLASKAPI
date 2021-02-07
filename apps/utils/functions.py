@@ -24,7 +24,8 @@ def getGUID():
 
 def getdict(obj, KeepKeys=[]):
     if isinstance(obj,DataFrame):
-        return [{k: getVal(v) for k,v in l.items() if k in KeepKeys or  v or (isinstance(v,bool) and getStr(v) !='') }
+        return [{k: getInt(v) if k.lower()=='id' else getVal(v) for k,v in l.items()
+                 if k in KeepKeys or  v or (isinstance(v,bool) and getStr(v) !='') }
                 for l in obj.to_dict('records')]
     if isinstance(obj,dict):
         return {k:v for k,v in obj.items() if k in KeepKeys or pd.notnull(v)}

@@ -7,7 +7,7 @@ from pandas import merge
 from .Stockout import Stockout
 from ..Order.OrderHead import OrderHead
 from ..Order.OrderLine import OrderLine
-from ..common.CCMast import CCMast
+from ..Item import Item
 from ....utils.functions import *
 
 class POReturn(Stockout):
@@ -23,10 +23,10 @@ class POReturn(Stockout):
             Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
 
         try:
-            # 采购入库 #.join(ItemMast, and_(cls.ItemCode == ItemMast.ItemCode, CCMast.DBName == ItemMast.Division))\
+            # 采购入库
+            # .join(ItemMast, and_(cls.ItemCode == ItemMast.ItemCode, CCMast.DBName == ItemMast.Division))\ .join(CCMast, CCMast.CostCenterCode==costCenterCode) \
             qryIn = cls.query.join(OrderLine, cls.OrderLineGuid==OrderLine.Guid)\
                 .join(OrderHead, OrderLine.HeadGuid==OrderHead.HeadGuid)\
-                .join(CCMast, CCMast.CostCenterCode==costCenterCode) \
                 .join(Item, cls.ItemCode==Item.ItemCode)\
                 .filter(cls.CostCenterCode==costCenterCode,cls.BusinessType=='POReceipt',
                         OrderHead.OrderDate==date, OrderHead.OrderNo==orderNo, cls.Qty>1/1000000)\

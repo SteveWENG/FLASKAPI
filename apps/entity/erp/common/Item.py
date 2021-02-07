@@ -5,7 +5,7 @@ from .LangMast import lang
 from ...erp import erp, db
 import pandas as pd
 
-class Item(erp):
+class Item1(erp):
     __tablename__ = 'DM_D_ERP_ITEM1'
 
     ItemCode = db.Column()

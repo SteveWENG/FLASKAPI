@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from ..entity.erp.Order.OrderHead import OrderHead
-from ..entity.erp.Recipe.MenuOrderHead import MenuOrderHead
+
 
 
 class OrderHelper:
