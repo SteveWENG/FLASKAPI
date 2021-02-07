@@ -22,41 +22,33 @@ class RecipeHelper:
 
         # Save BOM to site
         def _BOM(boms):
-            # 存division的BOM
-            if not boms:
-                return None
+            costCenterCode = data.get('costCenterCode', '')
 
-            costCenterCode = data.get('costCenterCode','')
             dbbom = ItemBOM.query.filter(ItemBOM.ProductGuid == data['Guid']) \
                 .with_entities(ItemBOM.Id, ItemBOM.ItemCode,ItemBOM.CostCenterCode)
             dbbom = pd.read_sql(dbbom.statement, ItemBOM.getBind())
             if dbbom.empty:
-                return boms
+                return getdict(boms)
             DataFrameSetNan(dbbom)
-            boms = pd.DataFrame(boms)
-            boms['CostCenterCode'] = costCenterCode
-            boms = merge(boms, dbbom[dbbom['CostCenterCode']==costCenterCode], how='left',
-                         left_on='ItemCode', right_on='ItemCode')
+
+            tmp = dbbom[dbbom['CostCenterCode']==costCenterCode]
+            if not tmp.empty:
+                boms = merge(boms,tmp[['Id','ItemCode']] , how='left', left_on='ItemCode', right_on='ItemCode')
             DataFrameSetNan(boms)
-            return getdict(boms) \
-                   + getdict(dbbom[dbbom['CostCenterCode']!=costCenterCode][['Id']])
+            return getdict(boms) + \
+                   getdict(dbbom[dbbom['CostCenterCode']!=costCenterCode][['Id']])
 
+        if 'ItemBOM' in list(data.keys()) and not data['ItemBOM']:
+            del data['ItemBOM']
         if data.get('ItemBOM'):
-            def _process(bom):
-                col = {'PurPrice':'ItemCost','BOMUnit':'UOM','PurBOMConversion':'ConversionRate'}
-                for k,v in col.items():
-                    if bom.get(k): bom[v] = bom.pop(k)
+            boms = pd.DataFrame(data['ItemBOM'])
+            DataFrameSetNan(boms)
+            boms.rename(columns={'PurPrice':'ItemCost','BOMUnit':'UOM','PurBOMConversion':'ConversionRate'},inplace=True)
+            boms['CostCenterCode'] = data.get('costCenterCode','')
+            if 'Id' in list(boms.columns):
+                boms.drop(['Id'], axis=1, inplace=True)
 
-                # Division的BOM，或Site的BOM
-                if not data.get('costCenterCode') or bom.get('CostCenterCode'):
-                    return bom
-
-                # Menu时存Site的BOM
-                del bom['Id']
-                return bom
-            data['ItemBOM'] = _BOM([_process(bom) for bom in data['ItemBOM']])
-            if not data['ItemBOM']:
-                del data['ItemBOM']
+            data['ItemBOM'] = _BOM(boms)
 
         product = Product(data)
 
