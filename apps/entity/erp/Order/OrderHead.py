@@ -195,9 +195,14 @@ class OrderHead(erp):
 
     def save(self,data):
         with RunApp():
+            submittedOrderStatus = self.OrderStatus(self.OrderType,'SubmittedOrder')
+            if not submittedOrderStatus:
+                self.AppStatus = 'submitted'
+            '''
             # Food order存盘状态是submitted
             if self.AppStatus.lower() == 'new' and self.OrderType.lower() == 'food':
                 self.AppStatus = 'submitted'
+            '''
 
             if data.get('orderLines'):
                 dflines = pd.DataFrame(data.get('orderLines'))
@@ -250,10 +255,17 @@ class OrderHead(erp):
                     .with_entities(OrderHead.OrderDate,OrderHead.CreateTime).first():
                     Error(lang('FDAFA76D-11C5-4EB4-BFEF-84150D5D40F2') % self.OrderDate)
 
+                '''
                 # 非食品单只能提交一次
                 if self.OrderType.lower() != 'food' and \
                         OrderHead.query.filter(OrderHead.HeadGuid == self.HeadGuid,
                                                OrderHead.AppStatus == 'submitted') \
+                                .with_entities(OrderHead.HeadGuid).first():
+                '''
+                # 需审批的Order只能提交一次
+                if submittedOrderStatus and \
+                        OrderHead.query.filter(OrderHead.HeadGuid == self.HeadGuid,
+                                               OrderHead.AppStatus == submittedOrderStatus) \
                                 .with_entities(OrderHead.HeadGuid).first():
                     return lang('74B9FC9B-3613-4570-90FA-FD9EEE8719DD'
                                 if self.AppStatus.lower() == 'new'
