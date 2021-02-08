@@ -32,14 +32,14 @@ class RecipeHelper:
             DataFrameSetNan(dbbom)
 
             tmp = dbbom[dbbom['CostCenterCode']==costCenterCode]
-            if not tmp.empty:
+            if not boms.empty and not tmp.empty:
                 boms = merge(boms,tmp[['Id','ItemCode']] , how='left', left_on='ItemCode', right_on='ItemCode')
             DataFrameSetNan(boms)
+
             return getdict(boms) + \
                    getdict(dbbom[dbbom['CostCenterCode']!=costCenterCode][['Id']])
 
-        if 'ItemBOM' in list(data.keys()) and not data['ItemBOM']:
-            del data['ItemBOM']
+        boms = pd.DataFrame([])
         if data.get('ItemBOM'):
             boms = pd.DataFrame(data['ItemBOM'])
             DataFrameSetNan(boms)
@@ -48,7 +48,9 @@ class RecipeHelper:
             if 'Id' in list(boms.columns):
                 boms.drop(['Id'], axis=1, inplace=True)
 
-            data['ItemBOM'] = _BOM(boms)
+        boms = _BOM(boms)
+        if not boms:
+            del data['ItemBOM']
 
         product = Product(data)
 
