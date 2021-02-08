@@ -23,7 +23,7 @@ class POStockin(Stockin):
         date = data.get('date', '')
         supplierCode = data.get('supplierCode','')
         orderType = data.get('orderType','')
-        if not headGuid or not costCenterCode or not date or not supplierCode:
+        if not headGuid or not costCenterCode or not date or not supplierCode or not orderType:
             Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
 
         tmp1 = OrderHead.listToStock(headGuid,costCenterCode,date,supplierCode,orderType,)

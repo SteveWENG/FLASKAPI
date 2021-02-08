@@ -106,10 +106,10 @@ class OrderHead(erp):
                 .distinct().order_by(OrderHead.OrderDate).all()
             ret['dates'] = [{'date': getDateTime(d.OrderDate)} for d in tmp]
             return ret
-
+        '''
         deadline = self.getFoodPODeadLine(orderType,'Normal',costCenterCode,podate)
         if deadline and deadline < 0: podate = podate + datetime.timedelta(days=1)
-
+        '''
         #补单
         Additiondates = []
         d = earLiestDate
