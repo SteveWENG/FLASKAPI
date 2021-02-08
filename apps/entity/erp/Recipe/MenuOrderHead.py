@@ -240,6 +240,7 @@ class MenuOrderHead(erp):
                 else:
                     tmph.HeadGuid = getGUID()
 
+                # FGs
                 for fg in l[list(dic.keys())[0]]:#l[date[0][0]]:
                     tmpfg = MenuOrderFG({k:v if k.lower() != 'rms' else
                                                 [{x:y for x,y in l.items() if x.lower() != 'fgguid'} for l in v]
@@ -251,20 +252,16 @@ class MenuOrderHead(erp):
                     for rm in tmpfg.RMs:
                         if not tmpfg.Id:  rm.Id = None
 
-                    '''
-                    if fg.get('RMs'):
-                        tmpfg.RMs = []
-                        for rm in fg['RMs']:
-                            tmprm = MenuOrderRM(rm)
-                            if not tmpfg.Id or not tmprm.Id:
-                                tmprm.Id = None
-    
-                            tmpfg.RMs.append(tmprm)
-                    '''
                     tmph.FGs.append(tmpfg)
 
                 tmpg.append(tmph)
         with SaveDB() as session:
             for tmph in tmpg:
+                # 全删除FGs
+                if tmph.Id and not tmph.FGs:
+                    session.query(MenuOrderFG).filter(MenuOrderFG.HeadGuid==tmph.HeadGuid)\
+                        .update({'HeadGuid':None},synchronize_session=False)
                 session.merge(tmph)
+
+
             return lang('56CF8259-D808-4796-A077-11124C523F6F')

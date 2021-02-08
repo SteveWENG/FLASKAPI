@@ -19,6 +19,8 @@ class RecipeHelper:
     def save(data):
         if data.get('ItemGuid'):
             data['Guid'] = data.pop('ItemGuid')
+        if not data.get('Id'):
+            data['Guid'] = getGUID()
 
         # Save BOM to site
         def _BOM(boms):
@@ -48,8 +50,8 @@ class RecipeHelper:
             if 'Id' in list(boms.columns):
                 boms.drop(['Id'], axis=1, inplace=True)
 
-        boms = _BOM(boms)
-        if not boms:
+        data['ItemBOM'] = _BOM(boms)
+        if not data['ItemBOM']:
             del data['ItemBOM']
 
         product = Product(data)

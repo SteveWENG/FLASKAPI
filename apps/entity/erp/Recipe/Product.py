@@ -160,9 +160,10 @@ class Product(erp):
                 bom.Id = None
 
         with SaveDB() as session:
-            session.merge(self)
+            # 全删除ItemBOM
             if self.Id and not self.ItemBOM:
                 session.query(ItemBOM).filter(ItemBOM.ProductGuid==self.Guid)\
                     .update({'ProductGuid':None},synchronize_session=False)
 
+            session.merge(self)
             return lang('56CF8259-D808-4796-A077-11124C523F6F')
