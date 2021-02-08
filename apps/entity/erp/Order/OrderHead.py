@@ -3,7 +3,7 @@
 import pandas as pd
 import numpy as np
 from pandas import merge
-from sqlalchemy import func, and_, or_, literal_column, case, cast
+from sqlalchemy import func, and_, or_,  literal_column, case, cast
 from sqlalchemy.ext.hybrid import hybrid_property
 
 from .OrderLine import OrderLine
@@ -12,6 +12,7 @@ from ..common.Calendar import Calendar
 from ..common.CostCenter import CostCenter
 from ..common.DataControlConfig import DataControlConfig
 from ..common.LangMast import lang
+from ..common.Supplier import Supplier
 from ....utils.QRCode import QRCodeBytes
 from ....utils.functions import *
 from ...erp import erp, db
@@ -141,6 +142,7 @@ class OrderHead(erp):
         ret['dates'] = Normaldates + Additiondates
         return ret
 
+
     def updatepo(self, costCenterCode, headGuid, orderDate, orderType, orderSubType):
         if not orderDate:
             Error(lang('6AD2E6B1-CD3C-465F-9651-9929429D72A3'))
@@ -265,7 +267,7 @@ class OrderHead(erp):
                 # 需审批的Order只能提交一次
                 if submittedOrderStatus and \
                         OrderHead.query.filter(OrderHead.HeadGuid == self.HeadGuid,
-                                               OrderHead.AppStatus == submittedOrderStatus) \
+                                               OrderHead.AppStatus == submittedOrderStatus['Submitted']) \
                                 .with_entities(OrderHead.HeadGuid).first():
                     return lang('74B9FC9B-3613-4570-90FA-FD9EEE8719DD'
                                 if self.AppStatus.lower() == 'new'
@@ -304,6 +306,31 @@ class OrderHead(erp):
         # tmp = [{k:getVal(getattr(l,k)) for k in l.keys() if getattr(l,k)} for l in qry]
         return tmpdf    #.to_dict('records')
 
+    @classmethod
+    def datesToStock(cls,costCenterCode):
+        appStatus = cls.OrderStatus(None, 'ToBeReceived')
+        filters = []
+        if isinstance(appStatus,str):
+            filters.append(OrderHead.AppStatus==appStatus)
+        elif isinstance(appStatus,list):
+            tmp = [and_(OrderHead.OrderType==status['OrderType'],
+                            OrderHead.AppStatus==status['Status'])
+                       for status in appStatus] +\
+                      [and_(~OrderHead.OrderType.in_([status['OrderType'] for status in appStatus]),
+                            OrderHead.AppStatus=='submitted')]
+            filters.append(or_(*tmp))
+        sql = OrderHead.query.filter(OrderHead.CostCenterCode == costCenterCode,
+                                     OrderHead.OrderDate <= datetime.date.today(),
+                                     OrderLine.RemainQty > 0,
+                                     *filters) \
+            .join(OrderLine, OrderHead.HeadGuid == OrderLine.HeadGuid) \
+            .join(Supplier, OrderLine.SupplierCode == Supplier.SupplierCode) \
+            .with_entities(OrderHead.HeadGuid, OrderHead.OrderNo, OrderHead.OrderDate,OrderHead.OrderType,
+                           func.coalesce(OrderHead.OrderSubType,OrderHead.OrderType).label('poType'),
+                           OrderLine.SupplierCode, Supplier.SupplierName.label('SupplierName')).distinct()
+        return pd.read_sql(sql.statement, cls.getBind())
+
+    # orderType：None，所有
     # step: SubmittedOrder, ToBeReceived
     @classmethod
     def OrderStatus(cls, orderType, step):
@@ -314,6 +341,15 @@ class OrderHead(erp):
 
         df = DataControlConfig.list(types='OrderTypeToBeApproved')
         if df.empty: return ret
+
+        if not orderType:
+            cols = {'Val1':'OrderType'}
+            if step == 'submittedorder':
+                cols = {**cols,'Val2':'Status'}
+            elif step == 'tobereceived':
+                cols = {**cols,'Val3':'Status'}
+            df.rename(columns=cols, inplace=True)
+            return getdict(df[list(cols.values())])
 
         df = df[df['Val1'].str.lower()==orderType.lower()]
         if df.empty: return ret

@@ -11,6 +11,10 @@ bp = Blueprint('stock', __name__, url_prefix='/stock')
 def items():
     return webapi(lambda dic: StockHelper.items(dic))
 
+@bp.route('/dates', methods=['POST'])
+def dates():
+    return webapi(lambda dic: StockHelper.dates(dic))
+
 @bp.route('/save', methods=['POST'])
 def save():
     return webapi(lambda dic: StockHelper.save(dic))

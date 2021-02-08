@@ -33,6 +33,13 @@ class StockHelper:
             raise e
 
     @staticmethod
+    def dates(data):
+        try:
+            return StockHelper._run('dates', data)
+        except Exception as e:
+            raise e
+
+    @staticmethod
     def _run(FuncName, data):
         try:
             appGuid = data.get('appGuid','')

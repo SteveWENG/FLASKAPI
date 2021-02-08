@@ -3,6 +3,7 @@
 from pandas import merge
 import pandas as pd
 from sqlalchemy import func
+from functools import reduce
 
 from ..Order.OrderHead import OrderHead
 from ..Order.OrderLine import OrderLine
@@ -36,6 +37,33 @@ class POStockin(Stockin):
         tmp1['stockQty'] = tmp1['qty'] * 1.1
 
         return tmp1.to_dict('records')
+
+    @classmethod
+    def dates(cls, data):
+        costCenterCode = data.get('costCenterCode', '')
+        if not costCenterCode:
+            Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
+
+        df = OrderHead.datesToStock(costCenterCode)
+        if df.empty:
+            Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
+
+        df.columns = [x[0].lower()+x[1:] for x in df.columns]
+        df.rename(columns={'orderDate':'date'},inplace=True)
+        indexFields = ['headGuid','supplierCode','orderNo','orderType']
+        df['sortValue'] = df['poType'].map(lambda x: 1 if x.lower()=='normal' else (2 if x.lower()=='addition' else 3))
+        df = df.sort_values(by=['sortValue']).groupby(by=['sortValue','poType','date'])\
+            .apply(lambda g:pd.Series(
+            {'lines':reduce(lambda x1,x2:x1+x2,
+                            [[{'index':{f:l[f] for f in indexFields},
+                               'label':'%s %s (%s)' %(l['supplierCode'],l['supplierName'],l['orderNo'])}]
+                             for l in g.to_dict('records')])}))\
+            .reset_index().drop(['sortValue'],axis=1)
+
+        df['disabled'] = 0
+        df.at[df[df['poType'].str.lower()=='normal'].index.min(), 'disabled']= 1
+
+        return getdict(df)
 
     @classmethod
     def SaveData(cls, trans, **kwargs):
