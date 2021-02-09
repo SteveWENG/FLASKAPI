@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 from flask import g
-from  ....utils.functions import getStr
 from ...erp import erp, db
 
 class LangMast(erp):

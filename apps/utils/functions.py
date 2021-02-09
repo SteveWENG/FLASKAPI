@@ -10,6 +10,8 @@ from pandas import DataFrame
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import mapper
 
+from apps.entity.erp.common.LangMast import lang
+
 
 def getOrderNo():
     return datetime.datetime.now().strftime('%y%m%d%H%M%S') + str(random.randint(1,10000) + 10000)[1:]
@@ -159,3 +161,15 @@ def RunApp():
         yield
     except Exception as e:
         raise e
+
+def getParameters(dic, cols):
+    ps = [col for col in cols if not dic.get(col)]
+    if ps:
+        Error(lang('BE5A9D64-A7D9-4DB8-B399-5C886BD33D9D') % ','.join(ps))
+
+    tmp = [dic[col] for col in cols]
+    if len(tmp) == 1:
+        return tmp[0]
+
+    return tmp
+

@@ -3,7 +3,7 @@
 import pandas as pd
 import numpy as np
 from pandas import merge
-from sqlalchemy import func, and_, or_,  literal_column, case, cast
+from sqlalchemy import func, and_, or_, literal_column, case, cast
 from sqlalchemy.ext.hybrid import hybrid_property
 
 from .OrderLine import OrderLine
@@ -142,6 +142,16 @@ class OrderHead(erp):
         ret['dates'] = Normaldates + Additiondates
         return ret
 
+    @classmethod
+    def FirstOpenOrderDate(cls,costCenterCode):
+        tmp = cls.query.filter(cls.CostCenterCode==costCenterCode,
+                               cls.OrderType=='Food',cls.OrderSubType=='Normal',
+                               cls.lines.any(OrderLine.RemainQty>0))\
+            .with_entities(func.min(cls.OrderDate).label('date')).first()
+        if not tmp:
+            tmp = datetime.date.today()
+
+        return min(datetime.date.today(),tmp.date)
 
     def updatepo(self, costCenterCode, headGuid, orderDate, orderType, orderSubType):
         if not orderDate:

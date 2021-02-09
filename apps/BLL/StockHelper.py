@@ -3,13 +3,11 @@ import importlib
 from operator import itemgetter
 from itertools import groupby
 import pandas as pd
-from flask import current_app
 
 from ..entity.EXACT.gbkmut import gbkmut
 from ..entity.erp import Stock
 from ..entity.erp.Stock import TransData
 from ..entity.erp.common.Apps import Apps
-from ..entity.erp.common.CCMast import CCMast
 from ..entity.erp.common.CostCenter import CostCenter
 from ..entity.erp.common.DataControlConfig import DataControlConfig
 from ..utils.functions import *
