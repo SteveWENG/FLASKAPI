@@ -1,12 +1,30 @@
 # -*- coding: utf-8 -*-
 
 from ..Order.CONTRACT import CONTRACT
-from ..common.LangMast import lang
+from ..common.LangMast import lang,getParameters
 from ....utils.functions import *
 from .Stockout import Stockout
 
 class DailyTicket(Stockout):
     type = 'DailyTicket'
+
+    @classmethod
+    def dates(cls,data):
+        costCenterCode = getParameters(data,['costCenterCode'])
+        date = datetime.date.today() + datetime.timedelta(days=-15)
+        tmp = cls.query.filter(cls.CostCenterCode==costCenterCode,
+                               cls.BusinessType==cls.type,
+                               cls.TransDate>=date,cls.DeleteTime==None)\
+            .with_entities(cls.TransDate).all()
+        if tmp:
+            tmp = [t.TransDate for t in tmp]
+
+        date = datetime.date.today()
+        return [{'date':getDateTime(date+datetime.timedelta(days=-x)),
+                 'Remark':lang('18B66397-D664-4B66-A8F0-CE048399A972')
+                 if tmp and (date+datetime.timedelta(days=-x)) in tmp else ''}
+                for x in range(15)][::-1]
+
 
     @classmethod
     def items(cls, data):

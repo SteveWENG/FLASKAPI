@@ -5,14 +5,14 @@ from pandas import merge
 from ..Order.OrderHead import OrderHead
 from .Stockout import Stockout
 from ....utils.functions import *
-from ..common.LangMast import lang
+from ..common.LangMast import lang,getParameters
 from ..Item import Item
 
 class DailyConsumption(Stockout):
     type = 'DailyConsumption'
 
     @classmethod
-    def dates(cls,data):
+    def dates(cls,costCenterCode):
         costCenterCode = getParameters(data,['costCenterCode'])
         maxOutDate = cls.LastOutDate(costCenterCode)
         if not maxOutDate:
@@ -24,6 +24,7 @@ class DailyConsumption(Stockout):
 
         return [{'date':getDateTime(maxOutDate+datetime.timedelta(days=x))}
                 for x in range(1,(minPODate-maxOutDate).days+1)]
+
 
     @classmethod
     def LastOutDate(cls,costCenterCode):
