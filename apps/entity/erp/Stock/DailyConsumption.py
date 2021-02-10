@@ -12,7 +12,7 @@ class DailyConsumption(Stockout):
     type = 'DailyConsumption'
 
     @classmethod
-    def dates(cls,costCenterCode):
+    def dates(cls,data):
         costCenterCode = getParameters(data,['costCenterCode'])
         maxOutDate = cls.LastOutDate(costCenterCode)
         if not maxOutDate:

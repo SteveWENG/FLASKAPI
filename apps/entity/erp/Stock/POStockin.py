@@ -9,7 +9,7 @@ from ..Order.OrderHead import OrderHead
 from ..Order.OrderLine import OrderLine
 from ....utils.functions import *
 from .Stockin import Stockin
-from ..common.LangMast import lang
+from ..common.LangMast import lang,getParameters
 from ..Item import Item
 
 
@@ -25,6 +25,8 @@ class POStockin(Stockin):
         orderType = data.get('orderType','')
         if not headGuid or not costCenterCode or not date or not supplierCode or not orderType:
             Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
+        headGuid,costCenterCode,date,supplierCode,orderType = \
+            getParameters(data,['headGuid','costCenterCode','date','supplierCode','orderType'])
 
         tmp1 = OrderHead.listToStock(headGuid,costCenterCode,date,supplierCode,orderType,)
         if tmp1.empty:
@@ -61,7 +63,8 @@ class POStockin(Stockin):
             .reset_index().drop(['sortValue'],axis=1)
 
         df['disabled'] = 0
-        df.at[df[df['poType'].str.lower()=='normal'].index.min(), 'disabled']= 1
+        if not df[df['poType'].str.lower()=='normal'].empty:
+            df.at[df[df['poType'].str.lower()=='normal'].index.min(), 'disabled']= 1
 
         return getdict(df)
 

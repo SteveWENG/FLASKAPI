@@ -9,10 +9,25 @@ from ..Order.OrderHead import OrderHead
 from ..Order.OrderLine import OrderLine
 from ..Item import Item
 from ....utils.functions import *
+from ..common.LangMast import getParameters
 
 class POReturn(Stockout):
     type = 'POReturn'
     msgSaveOk = '6D4952CA-CFC4-4D67-A02F-D65308761665'
+
+    @classmethod
+    def dates(cls,data):
+        costCenterCode = getParameters(data, ['costCenterCode'])
+        tmp = OrderHead.query.filter(OrderHead.CostCenterCode==costCenterCode,
+                                     OrderHead.OrderDate<=(datetime.date.today()+datetime.timedelta(days=-30)),
+                                     OrderHead.lines.any(and_((OrderLine.Qty+func.coalesce(OrderLine.AdjQty,0))>0,
+                                                         OrderLine.RemainQty==0)))\
+            .with_entities(OrderHead.OrderDate.label('date'),OrderHead.OrderNo.label('orderNo'))\
+            .order_by(OrderHead.OrderDate).all()
+        if not tmp:
+            Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF')) # No data
+
+        return getdict(tmp)
 
     @classmethod
     def items(cls, data):
