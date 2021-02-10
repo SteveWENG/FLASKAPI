@@ -148,8 +148,8 @@ class OrderHead(erp):
                                cls.OrderType=='Food',cls.OrderSubType=='Normal',
                                cls.lines.any(OrderLine.RemainQty>0))\
             .with_entities(func.min(cls.OrderDate).label('date')).first()
-        if not tmp:
-            tmp = datetime.date.today()
+        if not tmp.date:
+            return datetime.date.today()
 
         return min(datetime.date.today(),tmp.date)
 
