@@ -18,6 +18,7 @@ class POStockin(Stockin):
 
     @classmethod
     def items(cls, data):
+        '''
         headGuid = data.get('headGuid', '')
         costCenterCode = data.get('costCenterCode', '')
         date = data.get('date', '')
@@ -25,6 +26,7 @@ class POStockin(Stockin):
         orderType = data.get('orderType','')
         if not headGuid or not costCenterCode or not date or not supplierCode or not orderType:
             Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
+        '''
         headGuid,costCenterCode,date,supplierCode,orderType = \
             getParameters(data,['headGuid','costCenterCode','date','supplierCode','orderType'])
 
