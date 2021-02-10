@@ -234,7 +234,7 @@ class OrderHead(erp):
                 DataFrameSetNan(dflines)
                 dflines['remainQty'] = dflines.apply(lambda x: getNumber(x['adjQty'])+getNumber(x['qty']),  axis=1)
                 # 0订单
-                dflines = dflines[(dflines['remainQty'] !=0)|(dflines['qty'] !=0)]
+                dflines = dflines[(dflines['itemCode']!='')&((dflines['adjQty'] !=0)|(dflines['qty'] !=0))]
                 self.lines = [OrderLine({**getdict(l),
                                         'QRCode':QRCodeBytes('%s,%s' %(self.HeadGuid,l.get('supplierCode')))},
                                         True) for l in dflines.to_dict(orient='records')]
