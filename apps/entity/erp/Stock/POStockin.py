@@ -64,9 +64,10 @@ class POStockin(Stockin):
 
         df['disabled'] = 0
         if not df[df['poType'].str.lower()=='normal'].empty:
-            df.at[df[df['poType'].str.lower()=='normal'].index.min(), 'disabled']= 1
+            df.loc[df['poType'].str.lower()=='normal', 'disabled'] = 1
+            df.at[df[df['poType'].str.lower()=='normal'].index.min(), 'disabled']= 0
 
-        return getdict(df)
+        return getdict(df,['disabled'])
 
     @classmethod
     def SaveData(cls, trans, **kwargs):
