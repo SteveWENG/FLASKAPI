@@ -51,8 +51,9 @@ class BaseModel(db.Model):
             elif isinstance(t,db.Date):
                 v = getDateTime(v)
             '''
-
-            setattr(self, tmpkey, self.__wrap(prop,v))
+            tv = self.__wrap(prop,v)
+            if tv:
+                setattr(self, tmpkey, tv)
         '''
         # CreatedUser & ChangedUser
         for user in [user for user in fields if user.lower().endswith('user') and user.lower().startswith('c')]:
@@ -62,6 +63,9 @@ class BaseModel(db.Model):
         '''
 
     def __wrap(self,prop,value,HId=None):
+        if not value:
+            return None
+
         prop = prop.prop
         if isinstance(prop,properties.RelationshipProperty):
             if isinstance(value, (tuple, list, set, frozenset)):
@@ -79,6 +83,8 @@ class BaseModel(db.Model):
 
         if isinstance(value, (tuple, list, set, frozenset)):
             return type(value)([self.__wrap(v) for v in value])
+
+        return None
 
     def __wrap_del(self, value):
         if isinstance(value, (tuple, list, set, frozenset)):
