@@ -11,19 +11,20 @@ class DailyTicket(Stockout):
     @classmethod
     def dates(cls,data):
         costCenterCode = getParameters(data,['costCenterCode'])
-        date = datetime.date.today() + datetime.timedelta(days=-15)
-        tmp = cls.query.filter(cls.CostCenterCode==costCenterCode,
+        today = datetime.date.today()
+        date = today+ datetime.timedelta(days=-15)
+        date = min(datetime.date(today.year,today.month,1),date)
+        tmp = cls.query.filter(cls.CostCenterCode == costCenterCode,
                                cls.BusinessType==cls.type,
                                cls.TransDate>=date,cls.DeleteTime==None)\
             .with_entities(cls.TransDate).all()
         if tmp:
             tmp = [t.TransDate for t in tmp]
 
-        date = datetime.date.today()
-        return [{'date':getDateTime(date+datetime.timedelta(days=-x)),
+        return [{'date':getDateTime(today+datetime.timedelta(days=-x)),
                  'Remark':lang('18B66397-D664-4B66-A8F0-CE048399A972')
-                 if tmp and (date+datetime.timedelta(days=-x)) in tmp else ''}
-                for x in range(15)][::-1]
+                 if tmp and (today+datetime.timedelta(days=-x)) in tmp else ''}
+                for x in range((today-date).days+1)][::-1]
 
 
     @classmethod

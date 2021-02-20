@@ -37,6 +37,7 @@ class POStockin(Stockin):
         tmp2 = Item.list() # ItemMast.list(costCenterCode)[['ItemCode','ItemName','Stock_Unit']]
         tmp1 = merge(tmp1,tmp2,left_on='itemCode',right_on='ItemCode')
         tmp1.rename(columns={'ItemName':'itemName','Stock_Unit':'uom','CreateTime': 'orderLineCreateTime'}, inplace=True)
+        DataFrameSetNan(tmp1)
         # 限制最大入库数量
         tmp1['stockQty'] = tmp1['qty'] * 1.1
 
