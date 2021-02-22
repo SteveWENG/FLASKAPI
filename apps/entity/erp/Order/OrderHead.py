@@ -275,12 +275,12 @@ class OrderHead(erp):
                                 .with_entities(OrderHead.HeadGuid).first():
                 '''
                 # 需审批的Order只能提交一次
-                if submittedOrderStatus and \
+                if submittedOrderStatus.get('Submitted') and \
                         OrderHead.query.filter(OrderHead.HeadGuid == self.HeadGuid,
                                                OrderHead.AppStatus == submittedOrderStatus['Submitted']) \
                                 .with_entities(OrderHead.HeadGuid).first():
                     return lang('74B9FC9B-3613-4570-90FA-FD9EEE8719DD'
-                                if self.AppStatus.lower() == 'new'
+                                if self.AppStatus.lower() == submittedOrderStatus['Saved']
                                 else '83FB0C33-D08D-4428-9245-697617E62CA4')
 
                 session.merge(self)
@@ -343,8 +343,7 @@ class OrderHead(erp):
     # orderType：None，所有
     # step: SubmittedOrder, ToBeReceived
     @classmethod
-    def OrderStatus(cls, data):
-        orderType,type = getParameters(data,['orderType','type'])
+    def OrderStatus(cls, orderType,type):
         type = type.lower()
         ret = ''
         if type == 'submittedorder':

@@ -34,12 +34,16 @@ def lang(guid=None):
 
     return g.get('LangCode','EN').upper()
 
-def getParameters(dic, cols):
-    ps = [col for col in cols if not dic.get(col)]
-    if ps:
-        Error(lang('BE5A9D64-A7D9-4DB8-B399-5C886BD33D9D') % ','.join(ps))
+def getParameters(dic, cols, checkNoEmpty=True):
+    if isinstance(cols,str):
+        cols = cols.split(',')
 
-    tmp = [dic[col] for col in cols]
+    if checkNoEmpty:
+        ps = [col for col in cols if not dic.get(col)]
+        if ps:
+            Error(lang('BE5A9D64-A7D9-4DB8-B399-5C886BD33D9D') % ','.join(ps))
+
+    tmp = [dic.get(col,'') for col in cols]
     if len(tmp) == 1:
         return tmp[0]
 

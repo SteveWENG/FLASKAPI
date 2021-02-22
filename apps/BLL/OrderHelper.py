@@ -21,4 +21,4 @@ class OrderHelper:
 
     @staticmethod
     def OrderStatus(data):
-        return OrderHead.OrderStatus(data)
+        return OrderHead.OrderStatus(data.get('orderType'),data.get('type'))
