@@ -11,7 +11,7 @@ from ..Stock import TransData
 from ..common.Calendar import Calendar
 from ..common.CostCenter import CostCenter
 from ..common.DataControlConfig import DataControlConfig
-from ..common.LangMast import lang
+from ..common.LangMast import lang, getParameters
 from ..common.Supplier import Supplier
 from ....utils.QRCode import QRCodeBytes
 from ....utils.functions import *
@@ -343,10 +343,13 @@ class OrderHead(erp):
     # orderType：None，所有
     # step: SubmittedOrder, ToBeReceived
     @classmethod
-    def OrderStatus(cls, orderType, step):
-        step = step.lower()
+    def OrderStatus(cls, data):
+        orderType,type = getParameters(data,['orderType','type'])
+        type = type.lower()
         ret = ''
-        if step == 'tobereceived':
+        if type == 'submittedorder':
+            ret = {'Saved':'submitted'}
+        elif type == 'tobereceived':
             ret = 'submitted'
 
         df = DataControlConfig.list(types='OrderTypeToBeApproved')
@@ -354,19 +357,20 @@ class OrderHead(erp):
 
         if not orderType:
             cols = {'Val1':'OrderType'}
-            if step == 'submittedorder':
+            if type == 'submittedorder':
                 cols = {**cols,'Val2':'Status'}
-            elif step == 'tobereceived':
+            elif type == 'tobereceived':
                 cols = {**cols,'Val3':'Status'}
+
             df.rename(columns=cols, inplace=True)
             return getdict(df[list(cols.values())])
 
         df = df[df['Val1'].str.lower()==orderType.lower()]
         if df.empty: return ret
 
-        if step == 'submittedorder':
+        if type == 'submittedorder':
             return {'Saved':'new','Submitted':df.iloc[0]['Val2']}
-        elif step == 'tobereceived':
+        elif type == 'tobereceived':
             return df.iloc[0]['Val3']
 
         return ret

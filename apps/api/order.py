@@ -21,8 +21,8 @@ def save():
 
 @bp.route('/submittedorderstatus',methods=['POST'])
 def SubmittedOrderStatus():
-    return webapi(lambda dic: OrderHelper.OrderStatus({**dic,'step':'SubmittedOrder'}))
+    return webapi(lambda dic: OrderHelper.OrderStatus({**dic,'type':'SubmittedOrder'}))
 
 @bp.route('/tobereceivedorderstatus',methods=['POST'])
 def ToBeReceivedOrderStatus():
-    return webapi(lambda dic: OrderHelper.OrderStatus({**dic,'step':'ToBeReceived'}))
+    return webapi(lambda dic: OrderHelper.OrderStatus({**dic,'type':'ToBeReceived'}))
