@@ -13,8 +13,6 @@ from ... import SaveDB
 from ....utils.MyProcess import MyProcess
 from ....utils.functions import *
 from .ItemClass import ItemClass
-from ..Item.PriceList import PriceList
-from ..common.CostCenter import CostCenter
 from ..common.LangMast import lang
 from ...erp import erp, db,CurrentUser
 from .ItemBOM import ItemBOM
@@ -46,16 +44,7 @@ class Product(erp):
         return self.LangColumn('ItemName_')
 
     @classmethod
-    def list(cls,division, costCenterCode, date,fortype):
-        fortype = getStr(fortype).lower()
-        if (not division and not costCenterCode) or (fortype=='menu' and not costCenterCode):
-            Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
-
-        if division:
-            if not costCenterCode: fortype = 'recipe'
-        else:
-            division = CostCenter.GetDivision(costCenterCode)
-
+    def list(cls,division, costCenterCode, date,fortype, pricelist):
         def _list(bind,division, costCenterCode,date,fortype):
             filters = [cls.Division==division, cls.Status=='active',ItemBOM.DeleteTime==None,
                        ~cls.ItemBOM.any(ItemBOM.ItemCode.like('[AB]%'))]
@@ -69,8 +58,11 @@ class Product(erp):
             # BOM
             sql = cls.query.filter(*filters).join(ItemBOM,cls.Guid==ItemBOM.ProductGuid)
             sql = sql.with_entities(*fields)
+            product = pd.read_sql( sql.statement, bind)
+            '''
             product = MyProcess(pd.read_sql,sql.statement,bind)
-
+            
+            
             pricelist = None
             if fortype == 'menu':
                 pricelist = MyProcess(PriceList.list, division, costCenterCode, date, 'Food', False)
@@ -81,8 +73,9 @@ class Product(erp):
                 # PriceList
                 pricelist['PurBOMConversion'] = pricelist['PurStkConversion'] * pricelist['StkBOMConversion']
                 pricelist.drop(['PurStkConversion', 'StkBOMConversion', 'StockUnit'], axis=1, inplace=True)
-
-            product = product.get()
+            
+            product = product.get()            
+            '''
             if product.empty:
                 Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
 
@@ -101,7 +94,11 @@ class Product(erp):
             elif not siteproduct.empty: # 有site的recipe则取site的，否则取division的
                 product = product[~product['ProductGuid'].isin(set(siteproduct['ProductGuid']))].append(siteproduct)
 
-            df = merge(product, pricelist, how='outer', left_on='ItemCode', right_on='ItemCode')
+            if pricelist.empty:
+                return product
+
+            df = merge(product, pricelist, #how='outer',
+                       left_on='ItemCode', right_on='ItemCode')
             DataFrameSetNan(df)
             df['ItemType'] = df['ProductCode'].map(lambda x: 'FG' if x else 'RM')
             return df
@@ -138,8 +135,9 @@ class Product(erp):
                     .rename(columns={'ClassName':l+'Name','Sort':l+'Sort'})
             return product
 
-        product = _recipes(df)
+        return _recipes(df)
 
+        '''
         if 'ItemType' in df.columns:
             rms = df.loc[df['ItemType'] == 'RM',
                          ['ClassCode', 'ClassName', 'ItemCode', 'ItemName', 'PurUnit', 'PurPrice', 'ItemType']] \
@@ -150,6 +148,7 @@ class Product(erp):
         DataFrameSetNan(product)
         ttt = [t for t in ['ItemType','CategoriesClassSort', 'ItemCode'] if t in set(product.columns)]
         return getdict(product.sort_values(by=ttt))
+        '''
 
     def save(self):
         # New or modify
