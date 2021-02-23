@@ -11,6 +11,7 @@ from .MenuOrderRM import MenuOrderRM
 from .MenuOrderFG import MenuOrderFG
 from .Product import Product
 from ..Item import Item
+from ..Item.PriceList import PriceList
 from ..Order.CONTRACT import CONTRACT
 from ..common.LangMast import lang
 from ... import SaveDB
@@ -87,15 +88,24 @@ class MenuOrderHead(erp):
                            .drop(['StartDate', 'EndDate','LineNum'], axis=1)
                            .rename(columns={'SOItemName': 'ItemName', 'SOItemDesc': 'ItemDesc','guid':'OrderLineGuid'}))
 
+        # Product的分类
+        df1 = merge(df[~df['ItemGuid'].isna()], ItemClass.list(2).rename(columns={'Sort': 'ClassSort'}),
+                    left_on='CategoriesClassGuid', right_on='guid')\
+            .drop('guid',axis=1) \
+            .rename(columns={'CategoriesClassGuid': 'ClassGuid'})
+
+        # 直接采购件的分类
+        pl = PriceList.list(None, costCenterCode, startDate, 'Food', False)[['ItemCode', 'ClassCode', 'ClassName']]
+        df2 = merge(df[df['ItemGuid'].isna()].drop('CategoriesClassGuid',axis=1), pl,
+                    how='left', left_on='ItemCode', right_on='ItemCode')\
+            .rename(columns={'ClassCode':'ClassGuid'})
+        df2['ClassSort'] = 'z' + df2['ClassGuid']
+        df = df1.append(df2)
+
+        # 销售订单行
         df = merge(dfmeals, df, how='left', left_on='guid', right_on='OrderLineGuid')
         df.drop(['OrderLineGuid'],axis=1, inplace=True)
         df.rename(columns={'guid':'OrderLineGuid'},inplace=True)
-
-        # Product的分类
-        df = merge(df,ItemClass.list(2).rename(columns={'Sort':'ClassSort'}),
-                   how='left',left_on='CategoriesClassGuid',right_on='guid' )\
-            .rename(columns={'CategoriesClassGuid':'ClassGuid'})
-
         DataFrameSetNan(df)
 
         rms = MenuOrderRM.query.join(MenuOrderFG, MenuOrderRM.FGGuid == MenuOrderFG.FGGuid) \
