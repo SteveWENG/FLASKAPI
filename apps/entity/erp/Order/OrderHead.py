@@ -30,7 +30,7 @@ class OrderHead(erp):
     OrderSubType = db.Column()
     CostCenterCode = db.Column()
     CreateUser = db.Column()
-    CreateTime = db.Column(db.DateTime, default=datetime.datetime.now,onupdate=datetime.datetime.now)
+    CreateTime = db.Column(db.DateTime, default=datetime.datetime.now)
     AppGuid = db.Column()
     AppStatus = db.Column()
     FromType = db.Column()
@@ -97,7 +97,7 @@ class OrderHead(erp):
 
         if orderType.lower() != 'food':
             filters = [OrderHead.CostCenterCode==costCenterCode,
-                       OrderHead.Active==True, self.OrderType==orderType,
+                       OrderHead.Active==True, OrderHead.OrderType==orderType,
                        OrderHead.OrderDate>=earLiestDate,
                        ~OrderHead.lines.any(func.abs(func.round(OrderLine.Qty+
                                                           func.coalesce(OrderLine.AdjQty,0)-
