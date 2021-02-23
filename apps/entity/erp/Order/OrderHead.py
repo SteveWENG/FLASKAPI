@@ -31,6 +31,7 @@ class OrderHead(erp):
     CostCenterCode = db.Column()
     CreateUser = db.Column()
     CreateTime = db.Column(db.DateTime, default=datetime.datetime.now)
+    ChangedTime = db.Column(db.DateTime, default=datetime.datetime.now,onupdate=datetime.datetime.now)
     AppGuid = db.Column()
     AppStatus = db.Column()
     FromType = db.Column()
@@ -208,8 +209,8 @@ class OrderHead(erp):
     def save(self,data):
         with RunApp():
             submittedOrderStatus = self.OrderStatus(self.OrderType,'SubmittedOrder')
-            if not submittedOrderStatus:
-                self.AppStatus = 'submitted'
+            if not submittedOrderStatus.get('Submitted'):
+                self.AppStatus = submittedOrderStatus['Saved']
             '''
             # Food order存盘状态是submitted
             if self.AppStatus.lower() == 'new' and self.OrderType.lower() == 'food':
