@@ -154,13 +154,14 @@ class MenuOrderHead(erp):
                 tdf = tdf1.append(tdf[set(tdf.columns).intersection(set(tdf1.columns))])
 
             DataFrameSetNan(tdf)
-            return tdf.sort_values(by=list(set(['LineNum','ClassSort']).intersection(set(tdf.columns))))
-            [list(set(groupbyFields).intersection(set(tdf.columns))) + list(dates.keys())]
+            tdf.sort_values(by=list(set(['LineNum','ClassSort']).intersection(set(tdf.columns))),inplace=True)
+            return tdf[list(set(groupbyFields).intersection(set(tdf.columns))) + list(dates.keys())]
 
-        tdf = _processdf(df).drop(['StartDate', 'EndDate'], axis=1)\
-            .rename(columns={'SOItemName': 'ItemName', 'SOItemDesc': 'ItemDesc'})
+        tdft = _processdf(df)
+        tdft.drop(['StartDate', 'EndDate'], axis=1,inplace=True)
+        tdft.rename(columns={'SOItemName': 'ItemName', 'SOItemDesc': 'ItemDesc'},inplace=True)
 
-        return getdict(tdf)
+        return getdict(tdft)
 
     def save_bak(self,data):
         costCenterCode = data['costCenterCode']
