@@ -323,11 +323,11 @@ class OrderHead(erp):
         if isinstance(appStatus,str):
             filters.append(OrderHead.AppStatus==appStatus)
         elif isinstance(appStatus,list):
-            tmp = [and_(OrderHead.OrderType==status['OrderType'],
-                            OrderHead.AppStatus==status['Status'])
+            tmp = [and_(func.lower(OrderHead.OrderType)==status['OrderType'].lower(),
+                            func.lower(OrderHead.AppStatus)==status['Status'].lower())
                        for status in appStatus] +\
-                      [and_(~OrderHead.OrderType.in_([status['OrderType'] for status in appStatus]),
-                            OrderHead.AppStatus=='submitted')]
+                      [and_(~func.lower(OrderHead.OrderType).in_([status['OrderType'].lower() for status in appStatus]),
+                            func.lower(OrderHead.AppStatus)=='submitted')]
             filters.append(or_(*tmp))
         sql = OrderHead.query.filter(OrderHead.CostCenterCode == costCenterCode,
                                      OrderHead.OrderDate <= datetime.date.today(),
@@ -341,7 +341,7 @@ class OrderHead(erp):
         return pd.read_sql(sql.statement, cls.getBind())
 
     # orderType：None，所有
-    # step: SubmittedOrder, ToBeReceived
+    # type: SubmittedOrder, ToBeReceived
     @classmethod
     def OrderStatus(cls, orderType,type):
         type = type.lower()
