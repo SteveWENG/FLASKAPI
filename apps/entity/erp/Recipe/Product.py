@@ -30,6 +30,8 @@ class Product(erp):
     CookwayClassGuid = db.Column()
     SeasonClassGuid = db.Column()
     ItemShapeGuid = db.Column()
+    ItemColor = db.Column()
+    ItemTaste = db.Column()
     Status = db.Column()
     CreateUser = db.Column(default=CurrentUser)
     CreateTime = db.Column(server_default='getdate()')
@@ -50,7 +52,9 @@ class Product(erp):
                        ~cls.ItemBOM.any(ItemBOM.ItemCode.like('[AB]%'))]
             fields = [cls.CategoriesClassGuid,cls.CookwayClassGuid,cls.SeasonClassGuid,cls.ItemShapeGuid,
                       cls.Guid.label('ProductGuid'),cls.ItemCode.label('ProductCode'),
-                      cls.ItemName.label('ProductName'),cls.ShareQty,cls.CreateUser,cls.CreateTime]
+                      cls.ItemName.label('ProductName'),cls.ShareQty,
+                      cls.ItemColor,cls.ItemTaste,
+                      cls.CreateUser,cls.CreateTime]
             fields += ItemBOM.listCols(fortype)
 
             if costCenterCode:
@@ -113,7 +117,8 @@ class Product(erp):
                 product = df[df['ItemType'] == 'FG']
 
             groupbyFields = ['CategoriesClassGuid', 'CookwayClassGuid','SeasonClassGuid', 'ItemShapeGuid', 'ProductGuid',
-                             'ProductCode', 'ProductName', 'ShareQty', 'CreateUser', 'CreateTime', 'ItemType']
+                             'ProductCode', 'ProductName', 'ShareQty','ItemColor','ItemTaste',
+                             'CreateUser', 'CreateTime', 'ItemType']
 
             product = product.groupby(by=list(set(groupbyFields).intersection(set(product.columns))))\
                 .apply(lambda x: pd.Series({'ItemCost': (x['PurPrice']*x['Qty']/x['PurBOMConversion']).sum(),

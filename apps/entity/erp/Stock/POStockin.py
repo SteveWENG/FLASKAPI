@@ -55,7 +55,7 @@ class POStockin(Stockin):
 
         df.columns = [x[0].lower()+x[1:] for x in df.columns]
         df.rename(columns={'orderDate':'date'},inplace=True)
-        indexFields = ['headGuid','supplierCode','orderNo','orderType']
+        indexFields = ['headGuid','supplierCode','supplierName','orderNo','orderType']
         df['sortValue'] = df['poType'].map(lambda x: 1 if x.lower()=='normal' else (2 if x.lower()=='addition' else 3))
         df = df.sort_values(by=['sortValue']).groupby(by=['sortValue','poType','date'])\
             .apply(lambda g:pd.Series(

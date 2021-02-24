@@ -16,6 +16,7 @@ class MenuOrderFG(erp):
     ItemGuid = db.Column()
     ItemCode = db.Column()
     ItemUnit = db.Column()
+    ShareQty = db.Column()
     RequiredQty = db.Column()
     ItemCost = db.Column()
     ItemColor = db.Column()

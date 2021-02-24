@@ -66,7 +66,8 @@ class MenuOrderHead(erp):
                            func.coalesce(Product.ItemName,Item.ItemName).label('ItemName'),
                            Product.CategoriesClassGuid,
                            MenuOrderFG.ItemUnit,MenuOrderFG.RequiredQty,MenuOrderFG.ItemCost,
-                           MenuOrderFG.ItemColor,MenuOrderFG.ItemCost,MenuOrderFG.PurchasePolicy)
+                           MenuOrderFG.ItemColor,MenuOrderFG.ItemCost,MenuOrderFG.ShareQty,
+                           MenuOrderFG.PurchasePolicy)
         df = pd.read_sql(sql.statement,self.getBind())
 
         dfmeals = CONTRACT.meals(costCenterCode,startDate,endDate)
@@ -147,7 +148,7 @@ class MenuOrderHead(erp):
 
             groupbyFields += ['ClassGuid', 'ClassName','ClassSort']
             fgcols = ['Id', 'FGGuid', 'ItemGuid', 'ItemCode', 'ItemName', 'ItemCost',
-                    'ItemColor', 'ItemUnit', 'RequiredQty', 'PurchasePolicy','RMs']
+                    'ItemColor', 'ItemUnit', 'RequiredQty', 'ShareQty','PurchasePolicy','RMs']
             tdf1 = _groupdf(df[df['Id'] > 0], groupbyFields, fgcols)
             if not tdf1.empty:
                 tdf1.fillna(value={k: '' for k in dates.keys()}, inplace=True)

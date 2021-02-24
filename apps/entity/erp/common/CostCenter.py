@@ -23,12 +23,16 @@ class CostCenter(erp):
                 filter.append(cls.Division.in_(divisions))
             if costCenterCodes:
                 filter.append(cls.CostCenterCode.in_(costCenterCodes))
+
+            # Division与CostCenter是or
+            # if filter == [True]: filter = []
+            if len(filter) > 1:
+                filter = [or_(*filter)]
+
             if serviceCategories:
                 filter.append(cls.ServiceCategory.in_(serviceCategories))
 
-        #if filter == [True]: filter = []
-        if len(filter) > 1:
-            filter = [or_(*filter)]
+
         #filter.append(cls.StartDate<=datetime.datetime.now())
         tmp = cls.query.filter(*filter).with_entities(cls.Division,cls.CostCenterCode, cls.SiteGuid,cls.ExactWarehouse)\
             .distinct().all()
