@@ -46,8 +46,9 @@ class Product(erp):
         return self.LangColumn('ItemName_')
 
     @classmethod
-    def list(cls,division, costCenterCode, date,fortype, pricelist):
-        def _list(bind,division, costCenterCode,date,fortype):
+    def list(cls,division, costCenterCode, fortype, pricelist):
+
+        def _list(): #bind,division, costCenterCode,date,fortype):
             filters = [cls.Division==division, cls.Status=='active',ItemBOM.DeleteTime==None,
                        ~cls.ItemBOM.any(ItemBOM.ItemCode.like('[AB]%'))]
             fields = [cls.CategoriesClassGuid,cls.CookwayClassGuid,cls.SeasonClassGuid,cls.ItemShapeGuid,
@@ -62,11 +63,8 @@ class Product(erp):
             # BOM
             sql = cls.query.filter(*filters).join(ItemBOM,cls.Guid==ItemBOM.ProductGuid)
             sql = sql.with_entities(*fields)
-            product = pd.read_sql( sql.statement, bind)
+            product = pd.read_sql( sql.statement, cls.getBind())
             '''
-            product = MyProcess(pd.read_sql,sql.statement,bind)
-            
-            
             pricelist = None
             if fortype == 'menu':
                 pricelist = MyProcess(PriceList.list, division, costCenterCode, date, 'Food', False)
@@ -107,7 +105,7 @@ class Product(erp):
             df['ItemType'] = df['ProductCode'].map(lambda x: 'FG' if x else 'RM')
             return df
 
-        df = _list(cls.getBind(),division,costCenterCode,date,fortype)
+        df = _list()
         DataFrameSetNan(df)
 
         # Product -> BOM

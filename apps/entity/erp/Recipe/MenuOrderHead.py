@@ -90,17 +90,22 @@ class MenuOrderHead(erp):
                            .rename(columns={'SOItemName': 'ItemName', 'SOItemDesc': 'ItemDesc','guid':'OrderLineGuid'}))
 
         # Product的分类
-        df1 = merge(df[~df['ItemGuid'].isna()], ItemClass.list(2).rename(columns={'Sort': 'ClassSort'}),
-                    left_on='CategoriesClassGuid', right_on='guid')\
-            .drop('guid',axis=1) \
-            .rename(columns={'CategoriesClassGuid': 'ClassGuid'})
+        df1 = df[~df['ItemGuid'].isna()]
+        if not df1.empty:
+            df1 = merge(df1, ItemClass.list(2).rename(columns={'Sort': 'ClassSort'}),
+                        left_on='CategoriesClassGuid', right_on='guid')\
+                .drop('guid',axis=1) \
+                .rename(columns={'CategoriesClassGuid': 'ClassGuid'})
 
         # 直接采购件的分类
-        pl = PriceList.list(None, costCenterCode, startDate, 'Food', False)[['ItemCode', 'ClassCode', 'ClassName']]
-        df2 = merge(df[df['ItemGuid'].isna()].drop('CategoriesClassGuid',axis=1), pl,
-                    how='left', left_on='ItemCode', right_on='ItemCode')\
-            .rename(columns={'ClassCode':'ClassGuid'})
-        df2['ClassSort'] = 'z' + df2['ClassGuid']
+        df2 = df[df['ItemGuid'].isna()]
+        if not df2.empty:
+            pl = PriceList.list(None, costCenterCode, startDate, 'Food', False)[['ItemCode', 'ClassCode', 'ClassName']]
+            df2 = merge(df2.drop('CategoriesClassGuid',axis=1), pl,
+                        how='left', left_on='ItemCode', right_on='ItemCode')\
+                .rename(columns={'ClassCode':'ClassGuid'})
+            df2['ClassSort'] = 'z' + df2['ClassGuid']
+
         df = df1.append(df2)
 
         # 销售订单行

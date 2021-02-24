@@ -8,6 +8,7 @@ from ..entity.erp.Recipe.ItemBOM import ItemBOM
 from ..entity.erp.Recipe.Product import Product
 from ..entity.erp.common.CostCenter import CostCenter
 from ..entity.erp.common.LangMast import getParameters,lang
+from ..utils.MyProcess import MyProcess
 from ..utils.functions import *
 
 
@@ -27,8 +28,9 @@ class RecipeHelper:
         else:
             division = CostCenter.GetDivision(costCenterCode)
 
-        pricelist = pd.DataFrame([])
+        pricelist = None
         if type == 'menu':
+            #pricelist = MyProcess(PriceList.list, division, costCenterCode, date, 'Food', False)
             pricelist = PriceList.list(division, costCenterCode, date, 'Food', False)
             if pricelist.empty:
                 Error(lang('D08CA9F5-3BA5-4DE6-9FF8-8822E5ABA1FF'))  # No data
@@ -37,7 +39,7 @@ class RecipeHelper:
             pricelist['PurBOMConversion'] = pricelist['PurStkConversion'] * pricelist['StkBOMConversion']
             pricelist.drop(['PurStkConversion', 'StkBOMConversion', 'StockUnit'], axis=1, inplace=True)
 
-        product =  Product.list(division,costCenterCode,date,type,pricelist)
+        product =  Product.list(division,costCenterCode,type,pricelist)
 
         if not pricelist.empty:
             rms = pricelist[['ClassCode', 'ClassName', 'ItemCode', 'ItemName', 'PurUnit', 'PurPrice']] \
