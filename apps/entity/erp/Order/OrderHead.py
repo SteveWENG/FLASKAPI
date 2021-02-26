@@ -204,6 +204,10 @@ class OrderHead(erp):
         deadline = self.getFoodPODeadLine(orderType,orderSubType,costCenterCode, orderDate)
         if deadline:
             ret['DeadLine'] = deadline
+
+        submittedOrderStatus = OrderHead.OrderStatus(orderType,'SubmittedOrder')
+        if submittedOrderStatus.get('Submitted') and tmp[0].AppStatus != submittedOrderStatus['Saved']:
+            ret['StatusName'] = lang(tmp[0].AppStatus)
         return ret
 
     def save(self,data):
